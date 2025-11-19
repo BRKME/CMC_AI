@@ -29,7 +29,7 @@ TELEGRAM_BOT_TOKEN = "8323539910:AAG6DYij-FuqT7q-ovsBNNgEnWH2V6FXhoM"
 TELEGRAM_CHAT_ID = "-1003445906500"
 
 # GitHub настройки для картинок
-GITHUB_IMAGES_URL = "https://raw.githubusercontent.com/coinmarketcap-parser/Images1/main/"
+GITHUB_IMAGES_URL = "https://raw.githubusercontent.com/BRKME/coinmarketcap-parser/main/Images1/"
 # Список имен файлов картинок (от 10.jpg до 35.jpg)
 IMAGE_FILES = [f"{i}.jpg" for i in range(10, 36)]  # Генерирует: 10.jpg, 11.jpg, ..., 35.jpg
 
@@ -40,24 +40,32 @@ def send_telegram_photo_with_caption(photo_url, caption, parse_mode='HTML'):
         
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         
+        print(f"🔍 Попытка отправить фото: {photo_url}")
+        print(f"📏 Длина caption: {len(caption)} символов")
+        
         # Если caption слишком длинный - отправляем фото, потом текст отдельно
         if len(caption) > max_caption_length:
+            print("⚠️ Caption слишком длинный, отправляю фото и текст отдельно")
             # Отправляем фото без подписи
             payload = {
                 'chat_id': TELEGRAM_CHAT_ID,
                 'photo': photo_url
             }
-            response = requests.post(url, data=payload, timeout=10)
+            response = requests.post(url, data=payload, timeout=30)
+            
+            print(f"📊 Response status: {response.status_code}")
+            print(f"📄 Response text: {response.text}")
             
             if response.status_code == 200:
                 print("✓ Фото отправлено в Telegram")
                 # Отправляем текст отдельным сообщением
-                time.sleep(0.5)
+                time.sleep(1)
                 send_telegram_message(caption, parse_mode)
                 return True
             else:
-                print(f"✗ Ошибка отправки фото: {response.status_code}")
+                print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
                 # Если фото не отправилось - отправляем хотя бы текст
+                print("⚠️ Отправляю только текст без фото")
                 send_telegram_message(caption, parse_mode)
                 return False
         else:
@@ -68,20 +76,26 @@ def send_telegram_photo_with_caption(photo_url, caption, parse_mode='HTML'):
                 'caption': caption,
                 'parse_mode': parse_mode
             }
-            response = requests.post(url, data=payload, timeout=10)
+            response = requests.post(url, data=payload, timeout=30)
+            
+            print(f"📊 Response status: {response.status_code}")
+            print(f"📄 Response text: {response.text}")
             
             if response.status_code == 200:
                 print("✓ Фото с подписью отправлено в Telegram")
                 return True
             else:
-                print(f"✗ Ошибка отправки фото: {response.status_code}")
+                print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
                 # Если фото не отправилось - отправляем хотя бы текст
+                print("⚠️ Отправляю только текст без фото")
                 send_telegram_message(caption, parse_mode)
                 return False
                 
     except Exception as e:
         print(f"✗ Ошибка при отправке фото в Telegram: {e}")
+        traceback.print_exc()
         # В случае ошибки отправляем хотя бы текст
+        print("⚠️ Отправляю только текст без фото")
         send_telegram_message(caption, parse_mode)
         return False
 
