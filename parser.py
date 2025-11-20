@@ -36,60 +36,33 @@ IMAGE_FILES = [f"{i}.jpg" for i in range(10, 36)]  # Генерирует: 10.jp
 def send_telegram_photo_with_caption(photo_url, caption, parse_mode='HTML'):
     """Отправляет фото с подписью в Telegram"""
     try:
-        max_caption_length = 1024  # Telegram лимит для подписи к фото
-        
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         
         print(f"🔍 Попытка отправить фото: {photo_url}")
         print(f"📏 Длина caption: {len(caption)} символов")
         
-        # Если caption слишком длинный - отправляем фото, потом текст отдельно
-        if len(caption) > max_caption_length:
-            print("⚠️ Caption слишком длинный, отправляю фото и текст отдельно")
-            # Отправляем фото без подписи
-            payload = {
-                'chat_id': TELEGRAM_CHAT_ID,
-                'photo': photo_url
-            }
-            response = requests.post(url, data=payload, timeout=30)
-            
-            print(f"📊 Response status: {response.status_code}")
-            print(f"📄 Response text: {response.text}")
-            
-            if response.status_code == 200:
-                print("✓ Фото отправлено в Telegram")
-                # Отправляем текст отдельным сообщением
-                time.sleep(1)
-                send_telegram_message(caption, parse_mode)
-                return True
-            else:
-                print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
-                # Если фото не отправилось - отправляем хотя бы текст
-                print("⚠️ Отправляю только текст без фото")
-                send_telegram_message(caption, parse_mode)
-                return False
+        # Telegram всегда требует отправлять длинные тексты отдельно
+        # Сначала отправляем фото без подписи
+        payload = {
+            'chat_id': TELEGRAM_CHAT_ID,
+            'photo': photo_url
+        }
+        response = requests.post(url, data=payload, timeout=30)
+        
+        print(f"📊 Response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            print("✓ Фото отправлено в Telegram")
+            # Ждем немного и отправляем текст отдельным сообщением
+            time.sleep(1)
+            send_telegram_message(caption, parse_mode)
+            return True
         else:
-            # Отправляем фото с подписью
-            payload = {
-                'chat_id': TELEGRAM_CHAT_ID,
-                'photo': photo_url,
-                'caption': caption,
-                'parse_mode': parse_mode
-            }
-            response = requests.post(url, data=payload, timeout=30)
-            
-            print(f"📊 Response status: {response.status_code}")
-            print(f"📄 Response text: {response.text}")
-            
-            if response.status_code == 200:
-                print("✓ Фото с подписью отправлено в Telegram")
-                return True
-            else:
-                print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
-                # Если фото не отправилось - отправляем хотя бы текст
-                print("⚠️ Отправляю только текст без фото")
-                send_telegram_message(caption, parse_mode)
-                return False
+            print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
+            # Если фото не отправилось - отправляем хотя бы текст
+            print("⚠️ Отправляю только текст без фото")
+            send_telegram_message(caption, parse_mode)
+            return False
                 
     except Exception as e:
         print(f"✗ Ошибка при отправке фото в Telegram: {e}")
@@ -160,22 +133,46 @@ def get_random_image_url():
         print(f"✗ Ошибка при отправке в Telegram: {e}")
         return False
 
-def send_question_answer_to_telegram(question_num, total_questions, question, answer):
-    """Отправляет один вопрос и ответ в Telegram с случайной картинкой"""
+def extract_tldr_from_answer(answer):
+    """Извлекает только TLDR часть из ответа"""
     try:
-        # Убираем строку "Researched for Xs" из ответа
-        answer_lines = answer.split('\n')
-        cleaned_lines = []
-        for line in answer_lines:
-            if not line.strip().startswith('Researched for'):
-                cleaned_lines.append(line)
+        # Убираем строку "Researched for Xs"
+        answer = '\n'.join([line for line in answer.split('\n') if not line.strip().startswith('Researched for')])
         
-        cleaned_answer = '\n'.join(cleaned_lines).strip()
-        
-        # Форматируем сообщение без номера вопроса
-        caption = f"""<b>{question}</b>
+        # Ищем TLDR секцию
+        if 'TLDR' in answer:
+            # Находим начало TLDR
+            tldr_start = answer.find('TLDR')
+            
+            # Находим начало Deep Dive (конец TLDR)
+            deep_dive_start = answer.find('Deep Dive')
+            
+            if deep_dive_start != -1:
+                # Извлекаем только TLDR часть
+                tldr_section = answer[tldr_start:deep_dive_start].strip()
+            else:
+                # Если нет Deep Dive, берем все после TLDR до конца
+                tldr_section = answer[tldr_start:].strip()
+            
+            return tldr_section
+        else:
+            # Если нет TLDR, возвращаем первые 500 символов
+            return answer[:500] + "..."
+            
+    except Exception as e:
+        print(f"⚠️ Ошибка извлечения TLDR: {e}")
+        return answer[:500] + "..."
 
-{cleaned_answer}
+def send_question_answer_to_telegram(question_num, total_questions, question, answer):
+    """Отправляет вопрос и TLDR в Telegram с картинкой"""
+    try:
+        # Извлекаем только TLDR часть
+        tldr_text = extract_tldr_from_answer(answer)
+        
+        # Форматируем короткое сообщение с вопросом и TLDR
+        short_message = f"""<b>{question}</b>
+
+{tldr_text}
 
 {'─' * 40}"""
         
@@ -183,9 +180,11 @@ def send_question_answer_to_telegram(question_num, total_questions, question, an
         image_url = get_random_image_url()
         
         print(f"\n📤 Отправка вопроса {question_num}/{total_questions} в Telegram с картинкой...")
-        send_telegram_photo_with_caption(image_url, caption)
+        print(f"📏 Длина TLDR: {len(tldr_text)} символов")
         
-        # Пауза между сообщениями, чтобы избежать флуда
+        send_telegram_photo_with_caption(image_url, short_message)
+        
+        # Пауза между сообщениями
         time.sleep(1)
         
     except Exception as e:
@@ -423,7 +422,38 @@ def calculate_statistics(results):
         'total_chars': sum(lengths)
     }
 
-def save_to_json(data, filename='cmc_full_data.json'):
+def save_full_report_to_file(results, filename='full_report.txt'):
+    """Сохраняет полный отчет со всеми Deep Dive в текстовый файл"""
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write("COINMARKETCAP AI - ПОЛНЫЙ ОТЧЕТ\n")
+            f.write(f"Дата и время: {timestamp}\n")
+            f.write(f"Всего вопросов: {len(results)}\n")
+            f.write("=" * 80 + "\n\n")
+            
+            for i, result in enumerate(results, 1):
+                # Убираем "Researched for Xs"
+                answer = '\n'.join([line for line in result['answer'].split('\n') 
+                                   if not line.strip().startswith('Researched for')])
+                
+                f.write(f"\n{'=' * 80}\n")
+                f.write(f"ВОПРОС {i}/{len(results)}\n")
+                f.write(f"{'=' * 80}\n\n")
+                f.write(f"{result['question']}\n\n")
+                f.write(f"{answer}\n\n")
+                f.write(f"Длина ответа: {result['length']} символов\n")
+                f.write(f"Время обработки: {result['timestamp']}\n")
+                f.write(f"\n{'─' * 80}\n")
+        
+        print(f"✓ Полный отчет сохранен: {filename}")
+        return filename
+        
+    except Exception as e:
+        print(f"✗ Ошибка сохранения полного отчета: {e}")
+        return None
     """Сохраняет данные в JSON файл"""
     try:
         with open(filename, 'w', encoding='utf-8') as f:
@@ -571,8 +601,12 @@ async def main_parser():
             if all_results:
                 csv_file = save_to_csv(all_results, 'cmc_questions_answers.csv')
 
-            # Отправляем результаты в Telegram (каждый вопрос отдельно)
-            print("\n📤 ОТПРАВКА РЕЗУЛЬТАТОВ В TELEGRAM")
+            # Сохраняем полный отчет в текстовый файл
+            print("\n📄 СОХРАНЕНИЕ ПОЛНОГО ОТЧЕТА")
+            full_report_file = save_full_report_to_file(all_results, 'full_report.txt')
+
+            # Отправляем результаты в Telegram (только TLDR)
+            print("\n📤 ОТПРАВКА КРАТКИХ РЕЗУЛЬТАТОВ В TELEGRAM")
             send_all_results_to_telegram(all_results)
 
             print(f"\n🎯 ИТОГОВАЯ СТАТИСТИКА")
@@ -580,8 +614,10 @@ async def main_parser():
             print(f"  ✓ Успешно обработано: {len(all_results)}")
             print(f"  ✗ Не удалось обработать: {len(failed_questions)}")
             print(f"  📊 Средняя длина ответа: {stats.get('avg_length', 0)} символов")
-            print(f"  💾 Сохранено файлов локально: 2 (JSON, CSV)")
-            print(f"  📱 Отправлено в Telegram: {len(all_results)} вопросов с ответами")
+            print(f"  💾 Сохранено файлов локально: 3 (JSON, CSV, Full Report)")
+            print(f"  📱 Отправлено в Telegram: {len(all_results)} кратких сообщений (TLDR)")
+            if full_report_file:
+                print(f"  📄 Полный отчет: {full_report_file}")
 
             await browser.close()
             print("✓ Браузер закрыт\n")
