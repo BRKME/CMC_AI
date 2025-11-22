@@ -42,6 +42,10 @@ def clean_question_specific_text(question, text):
         if "What cryptos are showing bullish momentum?" in question:
             text = text.replace("Here are the trending cryptos based on CoinMarketCap's evolving momentum algorithm (news, social, price momentum)", "").strip()
         
+        # Для вопроса про trending narratives
+        if "What are the trending narratives?" in question:
+            text = text.replace("Here are the trending narratives based on CoinMarketCap's evolving narrative algorithm (price, news, social momentum):", "").strip()
+        
         return text
     except Exception as e:
         print(f"⚠️ Ошибка очистки текста: {e}")
@@ -105,7 +109,7 @@ def send_telegram_photo_with_caption(photo_url, caption, parse_mode='HTML'):
         return False
 
 def send_question_answer_to_telegram(question_num, total_questions, question, answer):
-    """Отправляет вопрос и TLDR в Telegram с картинкой"""
+    """Отправляет вопрос и TLDR в Telegram"""
     try:
         # Извлекаем только TLDR часть
         tldr_text = extract_tldr_from_answer(answer)
@@ -118,16 +122,14 @@ def send_question_answer_to_telegram(question_num, total_questions, question, an
 
 {tldr_text}"""
         
-        # Получаем случайную картинку
-        image_url = get_random_image_url()
-        
-        print(f"\n📤 Отправка вопроса {question_num}/{total_questions} в Telegram с картинкой...")
+        print(f"\n📤 Отправка вопроса {question_num}/{total_questions} в Telegram...")
         print(f"📏 Длина текста: {len(tldr_text)} символов")
         
-        send_telegram_photo_with_caption(image_url, short_message)
+        # Отправляем просто текст без фото
+        send_telegram_message(short_message)
         
         # Пауза между сообщениями
-        time.sleep(1)
+        time.sleep(2)
         
     except Exception as e:
         print(f"✗ Ошибка при отправке вопроса {question_num}: {e}")
