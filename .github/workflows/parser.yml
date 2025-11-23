@@ -1,44 +1,55 @@
-name: Run CMC Parser
+name: CoinMarketCap Parser - Hourly
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Каждые 6 часов
-  workflow_dispatch:  # Ручной запуск
+    # Запуск каждый час в 5 минут (например: 00:05, 01:05, 02:05 и т.д.)
+    - cron: '5 * * * *'
+  
+  workflow_dispatch:  # Позволяет запускать вручную
 
 jobs:
-  run-parser:
+  parse:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        persist-credentials: true
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
     
-    - name: Install dependencies
+    - name: Install Playwright
       run: |
-        python -m pip install --upgrade pip
-        pip install playwright beautifulsoup4 gspread oauth2client requests
+        pip install playwright beautifulsoup4 requests
         playwright install chromium
         playwright install-deps
     
     - name: Run parser
       env:
-        MAX_QUESTIONS: 8
         MAX_RETRIES: 2
       run: |
-        python parser.py
+        python parser_scheduled.py
     
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
+    - name: Commit publication history
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add publication_history.json
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update publication history [skip ci]"
+        git push
+      continue-on-error: true
+    
+    - name: Upload artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
       with:
-        name: parser-results
+        name: debug-logs
         path: |
-          cmc_full_data.json
-          cmc_questions_answers.csv
-          full_report.txt
-        if-no-files-found: ignore
+          *.log
+          *.txt
+        retention-days: 7
