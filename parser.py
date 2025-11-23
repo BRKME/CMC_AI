@@ -1,8 +1,11 @@
 """
-Парсер для CoinMarketCap AI - УЛУЧШЕННАЯ ВЕРСИЯ
-✅ Обработка всех 8 вопросов
-✅ Повторные попытки для пропущенных
-✅ Отправка каждого вопроса/ответа отдельным сообщением в Telegram
+Парсер для CoinMarketCap AI - ПРОТЕСТИРОВАННАЯ ВЕРСИЯ 1.0
+✅ 24/7 публикации по умному расписанию
+✅ Отслеживание истории публикаций
+✅ Динамические слоты с fallback на самый старый вопрос
+✅ Группировка вариаций вопросов (up/down market)
+✅ Retry логика и обработка ошибок
+✅ Полное логирование и обработка edge cases
 """
 
 import asyncio
@@ -10,32 +13,187 @@ from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 import time
 import json
-import csv
 import traceback
-from datetime import datetime
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime, timezone
 import requests
 import os
 import sys
 import random
+import logging
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('parser.log', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Глобальные настройки
-MAX_QUESTIONS = int(os.getenv('MAX_QUESTIONS', 8))
-MAX_RETRIES = int(os.getenv('MAX_RETRIES', 2))
+MAX_RETRIES = int(os.getenv('MAX_RETRIES', '2'))
 
 # Telegram настройки
-TELEGRAM_BOT_TOKEN = "8323539910:AAG6DYij-FuqT7q-ovsBNNgEnWH2V6FXhoM"
-TELEGRAM_CHAT_ID = "-1003445906500"
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8323539910:AAG6DYij-FuqT7q-ovsBNNgEnWH2V6FXhoM')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '-1003445906500')
 
 # GitHub настройки для картинок
 GITHUB_IMAGES_URL = "https://raw.githubusercontent.com/BRKME/coinmarketcap-parser/main/Images1/"
-# Список имен файлов картинок (от 10.jpg до 35.jpg)
-IMAGE_FILES = [f"{i}.jpg" for i in range(10, 36)]  # Генерирует: 10.jpg, 11.jpg, ..., 35.jpg
+IMAGE_FILES = [f"{i}.jpg" for i in range(10, 36)]
+
+# Расписание публикаций (час UTC : тип вопроса)
+SCHEDULE = {
+    0: "kols",           # What are KOLs discussing?
+    1: "sentiment",      # What is the market sentiment?
+    2: "market_direction", # Why is the market up/down?
+    3: "DYNAMIC",        # Динамический слот
+    4: "kols",
+    5: "bullish",        # What cryptos are showing bullish momentum?
+    6: "market_direction",
+    7: "events",         # What upcoming events may impact crypto?
+    8: "kols",
+    9: "DYNAMIC",        # Динамический слот
+    10: "market_direction",
+    11: "narratives",    # What are the trending narratives?
+    12: "kols",
+    13: "altcoins",      # Are altcoins outperforming Bitcoin?
+    14: "market_direction",
+    15: "DYNAMIC",       # Динамический слот
+    16: "kols",
+    17: "sentiment",
+    18: "market_direction",
+    19: "events",
+    20: "kols",
+    21: "DYNAMIC",       # Динамический слот
+    22: "market_direction",
+    23: "narratives"
+}
+
+# Группы вопросов (для обработки вариаций)
+QUESTION_GROUPS = {
+    "market_direction": [
+        "Why is the market up today?",
+        "Why is the market down today?"
+    ],
+    "kols": ["What are KOLs discussing?"],
+    "sentiment": ["What is the market sentiment?"],
+    "events": ["What upcoming events may impact crypto?"],
+    "bullish": ["What cryptos are showing bullish momentum?"],
+    "narratives": ["What are the trending narratives?"],
+    "altcoins": ["Are altcoins outperforming Bitcoin?"]
+}
+
+def get_question_group(question_text):
+    """Определяет к какой группе относится вопрос"""
+    if not question_text:
+        return "dynamic"
+    
+    question_lower = question_text.lower()
+    
+    # Проверяем market direction (up/down)
+    if "why is the market" in question_lower and ("up" in question_lower or "down" in question_lower):
+        return "market_direction"
+    
+    # Проверяем остальные группы
+    if "kol" in question_lower:
+        return "kols"
+    if "sentiment" in question_lower:
+        return "sentiment"
+    if "upcoming events" in question_lower or "events" in question_lower and "impact" in question_lower:
+        return "events"
+    if "bullish" in question_lower and "momentum" in question_lower:
+        return "bullish"
+    if "trending narratives" in question_lower or "narratives" in question_lower:
+        return "narratives"
+    if "altcoins" in question_lower and "bitcoin" in question_lower:
+        return "altcoins"
+    
+    return "dynamic"
+
+def load_publication_history():
+    """Загружает историю публикаций из JSON файла"""
+    try:
+        if os.path.exists('publication_history.json'):
+            with open('publication_history.json', 'r', encoding='utf-8') as f:
+                history = json.load(f)
+                logger.info(f"✓ История публикаций загружена: {len(history.get('last_published', {}))} групп")
+                return history
+    except Exception as e:
+        logger.warning(f"⚠️ Ошибка загрузки истории: {e}")
+    
+    logger.info("📝 Создание новой истории публикаций")
+    return {
+        "last_published": {},
+        "last_dynamic_question": "",
+        "dynamic_published_at": ""
+    }
+
+def save_publication_history(history):
+    """Сохраняет историю публикаций в JSON файл"""
+    try:
+        with open('publication_history.json', 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+        logger.info("✓ История публикаций обновлена")
+        return True
+    except Exception as e:
+        logger.error(f"✗ Ошибка сохранения истории: {e}")
+        return False
+
+def get_oldest_question_group(history):
+    """Находит группу вопроса которая публиковалась дольше всего назад"""
+    last_published = history.get("last_published", {})
+    
+    all_groups = ["kols", "sentiment", "market_direction", "events", "bullish", "narratives", "altcoins"]
+    
+    if not last_published:
+        logger.info("📊 История пуста, возвращаю 'kols'")
+        return "kols"
+    
+    oldest_group = None
+    oldest_time = None
+    
+    for group in all_groups:
+        timestamp_str = last_published.get(group)
+        
+        if not timestamp_str:
+            logger.info(f"📊 Группа '{group}' никогда не публиковалась")
+            return group
+            
+        try:
+            pub_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            if oldest_time is None or pub_time < oldest_time:
+                oldest_time = pub_time
+                oldest_group = group
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка парсинга даты для {group}: {e}")
+            return group
+    
+    logger.info(f"📊 Самая старая группа: {oldest_group} (опубликована {oldest_time})")
+    return oldest_group if oldest_group else "kols"
+
+def find_question_by_group(questions_list, group_name):
+    """Находит вопрос из списка по группе"""
+    if not questions_list:
+        logger.warning("⚠️ Пустой список вопросов")
+        return None
+    
+    for q in questions_list:
+        if get_question_group(q) == group_name:
+            logger.info(f"✓ Найден вопрос для группы '{group_name}': {q}")
+            return q
+    
+    logger.warning(f"⚠️ Не найден вопрос для группы '{group_name}'")
+    return None
 
 def send_telegram_message(message, parse_mode='HTML'):
     """Отправляет сообщение в Telegram с разбивкой на части при необходимости"""
     try:
+        if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+            logger.error("✗ Не заданы TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID")
+            return False
+        
         max_length = 4000
         
         if len(message) <= max_length:
@@ -47,15 +205,13 @@ def send_telegram_message(message, parse_mode='HTML'):
             }
             response = requests.post(url, data=payload, timeout=10)
             if response.status_code == 200:
-                print("✓ Сообщение отправлено в Telegram")
+                logger.info("✓ Сообщение отправлено в Telegram")
                 return True
             else:
-                print(f"✗ Ошибка отправки в Telegram: {response.status_code}")
-                print(f"Ответ: {response.text}")
+                logger.error(f"✗ Ошибка отправки в Telegram: {response.status_code} - {response.text}")
                 return False
         else:
-            # Разбиваем длинное сообщение
-            print(f"📨 Сообщение длинное ({len(message)} chars), разбиваю на части...")
+            logger.info(f"📨 Сообщение длинное ({len(message)} chars), разбиваю на части...")
             parts = []
             current_part = ""
             
@@ -65,7 +221,6 @@ def send_telegram_message(message, parse_mode='HTML'):
                         parts.append(current_part)
                         current_part = line
                     else:
-                        # Строка слишком длинная - режем по символам
                         for i in range(0, len(line), max_length - 100):
                             parts.append(line[i:i + max_length - 100])
                 else:
@@ -74,7 +229,6 @@ def send_telegram_message(message, parse_mode='HTML'):
             if current_part:
                 parts.append(current_part)
             
-            # Отправляем части
             for i, part in enumerate(parts, 1):
                 url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
                 payload = {
@@ -83,140 +237,136 @@ def send_telegram_message(message, parse_mode='HTML'):
                     'parse_mode': parse_mode
                 }
                 response = requests.post(url, data=payload, timeout=10)
-                print(f"  ✓ Часть {i}/{len(parts)} отправлена")
-                time.sleep(0.5)  # Небольшая пауза между частями
+                logger.info(f"  ✓ Часть {i}/{len(parts)} отправлена")
+                time.sleep(0.5)
             
             return True
             
     except Exception as e:
-        print(f"✗ Ошибка при отправке в Telegram: {e}")
+        logger.error(f"✗ Ошибка при отправке в Telegram: {e}")
         traceback.print_exc()
         return False
-
-def get_random_image_url():
-    """Возвращает случайный URL картинки из GitHub"""
-    random_image = random.choice(IMAGE_FILES)
-    return GITHUB_IMAGES_URL + random_image
-
-def extract_tldr_from_answer(answer):
-    """Извлекает только TLDR часть из ответа"""
-    try:
-        # Убираем строку "Researched for Xs"
-        answer = '\n'.join([line for line in answer.split('\n') if not line.strip().startswith('Researched for')])
-        
-        # Ищем TLDR секцию
-        if 'TLDR' in answer:
-            # Находим начало TLDR
-            tldr_start = answer.find('TLDR')
-            
-            # Находим начало Deep Dive (конец TLDR)
-            deep_dive_start = answer.find('Deep Dive')
-            
-            if deep_dive_start != -1:
-                # Извлекаем только TLDR часть
-                tldr_section = answer[tldr_start:deep_dive_start].strip()
-            else:
-                # Если нет Deep Dive, берем все после TLDR до конца
-                tldr_section = answer[tldr_start:].strip()
-            
-            # Убираем саму строку "TLDR" из начала
-            tldr_section = tldr_section.replace('TLDR', '', 1).strip()
-            
-            return tldr_section
-        else:
-            # Если нет TLDR, возвращаем первые 500 символов
-            return answer[:500] + "..."
-            
-    except Exception as e:
-        print(f"⚠️ Ошибка извлечения TLDR: {e}")
-        return answer[:500] + "..."
-
-def clean_question_specific_text(question, text):
-    """Убирает специфичные для вопросов ненужные строки"""
-    try:
-        # Для вопроса про upcoming events
-        if "What upcoming events may impact crypto?" in question:
-            text = text.replace("These are the upcoming crypto events that may impact crypto the most:", "").strip()
-        
-        # Для вопроса про bullish momentum
-        if "What cryptos are showing bullish momentum?" in question:
-            text = text.replace("Here are the trending cryptos based on CoinMarketCap's evolving momentum algorithm (news, social, price momentum)", "").strip()
-        
-        # Для вопроса про trending narratives
-        if "What are the trending narratives?" in question:
-            text = text.replace("Here are the trending narratives based on CoinMarketCap's evolving narrative algorithm (price, news, social momentum):", "").strip()
-        
-        return text
-    except Exception as e:
-        print(f"⚠️ Ошибка очистки текста: {e}")
-        return text
 
 def send_telegram_photo_with_caption(photo_url, caption, parse_mode='HTML'):
     """Отправляет фото с подписью в Telegram"""
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         
-        print(f"🔍 Попытка отправить фото: {photo_url}")
-        print(f"📏 Длина caption: {len(caption)} символов")
+        logger.info(f"🔍 Попытка отправить фото: {photo_url}")
+        logger.info(f"📏 Длина caption: {len(caption)} символов")
         
-        # Сначала отправляем фото без подписи
         payload = {
             'chat_id': TELEGRAM_CHAT_ID,
             'photo': photo_url
         }
         response = requests.post(url, data=payload, timeout=30)
         
-        print(f"📊 Response status: {response.status_code}")
-        
         if response.status_code == 200:
-            print("✓ Фото отправлено в Telegram")
-            # Ждем немного и отправляем текст отдельным сообщением
+            logger.info("✓ Фото отправлено в Telegram")
             time.sleep(1)
             send_telegram_message(caption, parse_mode)
             return True
         else:
-            print(f"✗ Ошибка отправки фото: {response.status_code} - {response.text}")
-            # Если фото не отправилось - отправляем хотя бы текст
-            print("⚠️ Отправляю только текст без фото")
+            logger.warning(f"⚠️ Ошибка отправки фото: {response.status_code} - {response.text}")
+            logger.info("⚠️ Отправляю только текст без фото")
             send_telegram_message(caption, parse_mode)
             return False
                 
     except Exception as e:
-        print(f"✗ Ошибка при отправке фото в Telegram: {e}")
+        logger.error(f"✗ Ошибка при отправке фото в Telegram: {e}")
         traceback.print_exc()
-        # В случае ошибки отправляем хотя бы текст
-        print("⚠️ Отправляю только текст без фото")
+        logger.info("⚠️ Отправляю только текст без фото")
         send_telegram_message(caption, parse_mode)
         return False
 
-def send_question_answer_to_telegram(question_num, total_questions, question, answer):
-    """Отправляет вопрос и TLDR в Telegram с картинкой"""
+def get_random_image_url():
+    """Возвращает случайный URL картинки из GitHub"""
+    random_image = random.choice(IMAGE_FILES)
+    url = GITHUB_IMAGES_URL + random_image
+    logger.info(f"🎨 Выбрана картинка: {random_image}")
+    return url
+
+def extract_tldr_from_answer(answer):
+    """Извлекает только TLDR часть из ответа"""
     try:
-        # Извлекаем только TLDR часть
-        tldr_text = extract_tldr_from_answer(answer)
+        if not answer:
+            return ""
         
-        # Очищаем от специфичных для вопросов строк
+        # Убираем строку "Researched for Xs"
+        answer = '\n'.join([line for line in answer.split('\n') if not line.strip().startswith('Researched for')])
+        
+        # Ищем TLDR секцию
+        if 'TLDR' in answer:
+            tldr_start = answer.find('TLDR')
+            deep_dive_start = answer.find('Deep Dive')
+            
+            if deep_dive_start != -1:
+                tldr_section = answer[tldr_start:deep_dive_start].strip()
+            else:
+                tldr_section = answer[tldr_start:].strip()
+            
+            tldr_section = tldr_section.replace('TLDR', '', 1).strip()
+            return tldr_section
+        else:
+            logger.warning("⚠️ TLDR не найден, возвращаю первые 500 символов")
+            return answer[:500] + ("..." if len(answer) > 500 else "")
+            
+    except Exception as e:
+        logger.error(f"⚠️ Ошибка извлечения TLDR: {e}")
+        return answer[:500] + ("..." if len(answer) > 500 else "")
+
+def clean_question_specific_text(question, text):
+    """Убирает специфичные для вопросов ненужные строки"""
+    try:
+        if not text:
+            return text
+        
+        cleaners = [
+            ("What upcoming events may impact crypto?", 
+             "These are the upcoming crypto events that may impact crypto the most:"),
+            ("What cryptos are showing bullish momentum?", 
+             "Here are the trending cryptos based on CoinMarketCap's evolving momentum algorithm (news, social, price momentum)"),
+            ("What are the trending narratives?", 
+             "Here are the trending narratives based on CoinMarketCap's evolving narrative algorithm (price, news, social momentum):")
+        ]
+        
+        for question_pattern, text_to_remove in cleaners:
+            if question_pattern in question:
+                text = text.replace(text_to_remove, "").strip()
+        
+        return text
+    except Exception as e:
+        logger.error(f"⚠️ Ошибка очистки текста: {e}")
+        return text
+
+def send_question_answer_to_telegram(question, answer):
+    """Отправляет вопрос и TLDR в Telegram с картинкой. Возвращает True если успешно."""
+    try:
+        tldr_text = extract_tldr_from_answer(answer)
         tldr_text = clean_question_specific_text(question, tldr_text)
         
-        # Форматируем короткое сообщение
+        if not tldr_text:
+            logger.error("✗ Пустой TLDR после обработки")
+            return False
+        
         short_message = f"""<b>{question}</b>
 
 {tldr_text}"""
         
-        # Получаем случайную картинку
         image_url = get_random_image_url()
         
-        print(f"\n📤 Отправка вопроса {question_num}/{total_questions} в Telegram с картинкой...")
-        print(f"📏 Длина TLDR: {len(tldr_text)} символов")
+        logger.info(f"\n📤 Отправка в Telegram...")
+        logger.info(f"📏 Длина TLDR: {len(tldr_text)} символов")
         
-        send_telegram_photo_with_caption(image_url, short_message)
-        
-        # Пауза между сообщениями
+        result = send_telegram_photo_with_caption(image_url, short_message)
         time.sleep(1)
         
+        return result
+        
     except Exception as e:
-        print(f"✗ Ошибка при отправке вопроса {question_num}: {e}")
+        logger.error(f"✗ Ошибка при отправке: {e}")
         traceback.print_exc()
+        return False
 
 async def accept_cookies(page):
     """Принимает cookies если баннер появился"""
@@ -233,7 +383,7 @@ async def accept_cookies(page):
                 button = await page.query_selector(selector)
                 if button:
                     await button.click()
-                    print("✓ Cookie-баннер принят")
+                    logger.info("✓ Cookie-баннер принят")
                     await asyncio.sleep(2)
                     return True
             except:
@@ -241,7 +391,7 @@ async def accept_cookies(page):
 
         return False
     except Exception as e:
-        print(f"⚠️ Предупреждение при обработке cookies: {e}")
+        logger.warning(f"⚠️ Предупреждение при обработке cookies: {e}")
         return False
 
 async def reset_to_question_list(page):
@@ -264,19 +414,19 @@ async def reset_to_question_list(page):
                 if button:
                     await button.click()
                     await asyncio.sleep(2)
-                    print("  ✓ Сброс чата выполнен")
+                    logger.info("  ✓ Сброс чата выполнен")
                     return True
             except:
                 continue
 
-        print("  ℹ️  Переход на базовый URL...")
+        logger.info("  ℹ️  Переход на базовый URL...")
         await page.goto('https://coinmarketcap.com/cmc-ai/ask/', wait_until='domcontentloaded', timeout=15000)
         await accept_cookies(page)
         await asyncio.sleep(3)
         return True
 
     except Exception as e:
-        print(f"  ⚠️ Ошибка сброса: {e}")
+        logger.warning(f"  ⚠️ Ошибка сброса: {e}")
         try:
             await page.goto('https://coinmarketcap.com/cmc-ai/ask/', timeout=15000)
             await asyncio.sleep(2)
@@ -287,7 +437,7 @@ async def reset_to_question_list(page):
 async def get_ai_response(page, question_text):
     """Получает ответ AI используя точный селектор"""
     try:
-        print("  ⏳ Ожидание генерации ответа AI...")
+        logger.info("  ⏳ Ожидание генерации ответа AI...")
         await asyncio.sleep(5)
 
         max_attempts = 25
@@ -299,31 +449,25 @@ async def get_ai_response(page, question_text):
                 if assistant_container:
                     full_text = await assistant_container.inner_text()
 
-                    if (full_text and
-                        len(full_text) > 200 and
-                        'TLDR' in full_text):
-
+                    if (full_text and len(full_text) > 200 and 'TLDR' in full_text):
                         if full_text.startswith('BTC$'):
                             parts = full_text.split(question_text)
                             if len(parts) > 1:
                                 full_text = question_text + parts[1]
 
-                        print(f"  ✓ Ответ найден на попытке {attempt + 1}")
+                        logger.info(f"  ✓ Ответ найден на попытке {attempt + 1}")
                         return full_text.strip()
 
                 html = await page.content()
                 soup = BeautifulSoup(html, 'html.parser')
-
                 assistant_div = soup.find('div', class_=lambda x: x and 'message-assistant' in str(x))
 
                 if assistant_div:
                     paragraphs = assistant_div.find_all('p')
-
                     if len(paragraphs) > 2:
                         full_answer = '\n\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
-
                         if len(full_answer) > 200 and 'TLDR' in full_answer:
-                            print(f"  ✓ Ответ найден на попытке {attempt + 1} (BeautifulSoup)")
+                            logger.info(f"  ✓ Ответ найден на попытке {attempt + 1} (BeautifulSoup)")
                             return full_answer
 
             except Exception as e:
@@ -333,212 +477,79 @@ async def get_ai_response(page, question_text):
                 await asyncio.sleep(1)
 
             if (attempt + 1) % 5 == 0:
-                print(f"  ⏳ Попытка {attempt + 1}/{max_attempts}...")
+                logger.info(f"  ⏳ Попытка {attempt + 1}/{max_attempts}...")
 
-        print("  ⚠️ Ответ не найден после всех попыток")
+        logger.warning("  ⚠️ Ответ не найден после всех попыток")
         return None
 
     except Exception as e:
-        print(f"  ❌ Ошибка: {e}")
+        logger.error(f"  ❌ Ошибка: {e}")
         return None
 
 async def click_and_get_response(page, question_text, attempt_num=1):
     """Кликает по кнопке с вопросом и получает ответ AI"""
     try:
-        print(f"\n🔍 Поиск кнопки: '{question_text}' (попытка {attempt_num})")
+        logger.info(f"\n🔍 Поиск кнопки: '{question_text}' (попытка {attempt_num})")
 
         button = await page.query_selector(f'text="{question_text}"')
 
         if not button:
-            print(f"✗ Кнопка не найдена")
+            logger.error(f"✗ Кнопка не найдена")
             return None
 
-        print(f"✓ Кнопка найдена, выполняю клик...")
+        logger.info(f"✓ Кнопка найдена, выполняю клик...")
         await button.click()
 
         response = await get_ai_response(page, question_text)
 
         if response:
-            print(f"✓ Обработка завершена (длина ответа: {len(response)} символов)")
-
+            logger.info(f"✓ Обработка завершена (длина ответа: {len(response)} символов)")
             return {
                 'question': question_text,
                 'answer': response,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'attempt': attempt_num,
                 'length': len(response)
             }
         else:
-            print(f"✗ Ответ не получен")
+            logger.error(f"✗ Ответ не получен")
             return None
 
     except Exception as e:
-        print(f"✗ Ошибка при клике: {e}")
+        logger.error(f"✗ Ошибка при клике: {e}")
         return None
 
-async def parse_all_questions_with_retries(page, questions_list, max_questions=8, max_retries=2):
-    """Парсит все вопросы с повторными попытками для пропущенных"""
-    results = []
-    failed_questions = []
-
-    print(f"\n📝 СБОР ОТВЕТОВ НА ВОПРОСЫ ({min(max_questions, len(questions_list))} вопросов)")
-
-    # Первый проход - обрабатываем все вопросы
-    for i, question in enumerate(questions_list[:max_questions], 1):
-        print(f"\n[{i}/{min(max_questions, len(questions_list))}] Обработка вопроса...")
-
-        result = await click_and_get_response(page, question, attempt_num=1)
-
-        if result:
-            results.append(result)
-            print(f"✓ Успешно обработан")
-        else:
-            print(f"✗ Не удалось получить ответ, добавляю в список повторов")
-            failed_questions.append(question)
-
-        if i < min(max_questions, len(questions_list)):
-            await reset_to_question_list(page)
-            await asyncio.sleep(2)
-
-    # Повторные попытки для пропущенных вопросов
-    if failed_questions and max_retries > 0:
-        print(f"\n🔄 ПОВТОРНЫЕ ПОПЫТКИ ({len(failed_questions)} вопросов)")
-
-        for retry_attempt in range(2, max_retries + 2):
-            if not failed_questions:
-                break
-
-            print(f"\n📍 Попытка #{retry_attempt} для {len(failed_questions)} вопросов")
-
-            still_failed = []
-
-            for question in failed_questions:
-                print(f"\n🔄 Повторная обработка: '{question}'")
-
-                result = await click_and_get_response(page, question, attempt_num=retry_attempt)
-
-                if result:
-                    results.append(result)
-                    print(f"✓ Успешно получен ответ!")
-                else:
-                    still_failed.append(question)
-                    print(f"✗ Все еще не удалось")
-
-                await reset_to_question_list(page)
-                await asyncio.sleep(2)
-
-            failed_questions = still_failed
-
-    print(f"\n📊 РЕЗУЛЬТАТЫ ОБРАБОТКИ")
-    print(f"  ✅ Успешно обработано: {len(results)}/{min(max_questions, len(questions_list))}")
-    print(f"  ❌ Не удалось обработать: {len(failed_questions)}")
-
-    return results, failed_questions
-
-def calculate_statistics(results):
-    """Вычисляет статистику по длине ответов"""
-    if not results:
-        return {}
-
-    lengths = [r['length'] for r in results]
-
-    return {
-        'total_answers': len(results),
-        'avg_length': sum(lengths) // len(lengths),
-        'min_length': min(lengths),
-        'max_length': max(lengths),
-        'total_chars': sum(lengths)
-    }
-
-def save_full_report_to_file(results, filename='full_report.txt'):
-    """Сохраняет полный отчет со всеми Deep Dive в текстовый файл"""
+async def get_all_questions(page):
+    """Получает список всех доступных вопросов"""
     try:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        elements = await page.query_selector_all('div.BaseChip_labelWrapper__pQXPT')
         
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write("=" * 80 + "\n")
-            f.write("COINMARKETCAP AI - ПОЛНЫЙ ОТЧЕТ\n")
-            f.write(f"Дата и время: {timestamp}\n")
-            f.write(f"Всего вопросов: {len(results)}\n")
-            f.write("=" * 80 + "\n\n")
-            
-            for i, result in enumerate(results, 1):
-                # Убираем "Researched for Xs"
-                answer = '\n'.join([line for line in result['answer'].split('\n') 
-                                   if not line.strip().startswith('Researched for')])
-                
-                f.write(f"\n{'=' * 80}\n")
-                f.write(f"ВОПРОС {i}/{len(results)}\n")
-                f.write(f"{'=' * 80}\n\n")
-                f.write(f"{result['question']}\n\n")
-                f.write(f"{answer}\n\n")
-                f.write(f"Длина ответа: {result['length']} символов\n")
-                f.write(f"Время обработки: {result['timestamp']}\n")
-                f.write(f"\n{'─' * 80}\n")
+        questions_list = []
+        seen = set()
         
-        print(f"✓ Полный отчет сохранен: {filename}")
-        return filename
+        for elem in elements:
+            text = await elem.inner_text()
+            text = text.strip()
+            if text and text not in seen:
+                questions_list.append(text)
+                seen.add(text)
         
+        logger.info(f"✓ Найдено уникальных вопросов: {len(questions_list)}")
+        return questions_list
     except Exception as e:
-        print(f"✗ Ошибка сохранения полного отчета: {e}")
-        return None
-
-def save_to_json(data, filename='cmc_full_data.json'):
-    """Сохраняет данные в JSON файл"""
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"✓ JSON сохранен: {filename}")
-        return filename
-    except Exception as e:
-        print(f"✗ Ошибка сохранения JSON: {e}")
-        return None
-
-def save_to_csv(data, filename='cmc_questions_answers.csv'):
-    """Сохраняет данные в CSV файл"""
-    try:
-        if not data:
-            print("✗ Нет данных для сохранения в CSV")
-            return None
-
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = ['question', 'answer', 'length', 'attempt', 'timestamp']
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(data)
-
-        print(f"✓ CSV сохранен: {filename}")
-        return filename
-    except Exception as e:
-        print(f"✗ Ошибка сохранения CSV: {e}")
-        return None
-
-def send_all_results_to_telegram(results):
-    """Отправляет все результаты в Telegram - каждый вопрос отдельным сообщением"""
-    try:
-        print("\n📤 Отправка результатов в Telegram...")
-        
-        # Отправляем каждый вопрос и ответ отдельным сообщением (без стартового сообщения)
-        total_questions = len(results)
-        for i, result in enumerate(results, 1):
-            send_question_answer_to_telegram(
-                question_num=i,
-                total_questions=total_questions,
-                question=result['question'],
-                answer=result['answer']
-            )
-        
-        print("✓ Все результаты отправлены в Telegram")
-        
-    except Exception as e:
-        print(f"✗ Ошибка при отправке результатов в Telegram: {e}")
-        traceback.print_exc()
+        logger.error(f"✗ Ошибка получения списка вопросов: {e}")
+        return []
 
 async def main_parser():
-    """Главная функция парсера"""
-    async with async_playwright() as p:
-        try:
-            print("🌐 Загрузка страницы...")
+    """Главная функция парсера с умным расписанием"""
+    browser = None
+    try:
+        logger.info("="*70)
+        logger.info("🚀 ЗАПУСК ПАРСЕРА COINMARKETCAP AI v1.0")
+        logger.info("="*70)
+        
+        async with async_playwright() as p:
+            logger.info("🌐 Загрузка страницы...")
 
             browser = await p.chromium.launch(
                 headless=True,
@@ -561,124 +572,221 @@ async def main_parser():
             for attempt in range(3):
                 try:
                     await page.goto('https://coinmarketcap.com/cmc-ai/ask/', wait_until='domcontentloaded', timeout=20000)
-                    print("✓ Страница загружена")
+                    logger.info("✓ Страница загружена")
                     break
                 except Exception as e:
                     if attempt < 2:
-                        print(f"⚠️ Попытка {attempt + 1} не удалась, пробую еще раз...")
+                        logger.warning(f"⚠️ Попытка {attempt + 1} не удалась, пробую еще раз...")
                         await asyncio.sleep(3)
                     else:
                         raise
 
-            print("🍪 Проверка cookie-баннера...")
+            logger.info("🍪 Проверка cookie-баннера...")
             await accept_cookies(page)
 
-            print("⏳ Ожидание загрузки контента (5 секунд)...")
+            logger.info("⏳ Ожидание загрузки контента (5 секунд)...")
             await asyncio.sleep(5)
 
-            print("\n🔍 ПОЛУЧЕНИЕ СПИСКА ВОПРОСОВ")
-
-            elements = await page.query_selector_all('div.BaseChip_labelWrapper__pQXPT')
-
-            questions_list = []
-            seen = set()
-
-            for elem in elements:
-                text = await elem.inner_text()
-                text = text.strip()
-                if text and text not in seen:
-                    questions_list.append(text)
-                    seen.add(text)
-
-            print(f"✓ Найдено уникальных вопросов: {len(questions_list)}")
+            # Получаем список всех вопросов
+            logger.info("\n🔍 ПОЛУЧЕНИЕ СПИСКА ВОПРОСОВ")
+            questions_list = await get_all_questions(page)
+            
+            if not questions_list:
+                raise Exception("Не найдено ни одного вопроса на странице!")
+            
             for i, q in enumerate(questions_list, 1):
-                print(f"  {i}. {q}")
+                group = get_question_group(q)
+                logger.info(f"  {i}. {q} [{group}]")
 
-            all_results, failed_questions = await parse_all_questions_with_retries(
-                page,
-                questions_list,
-                max_questions=MAX_QUESTIONS,
-                max_retries=MAX_RETRIES
-            )
-
-            stats = calculate_statistics(all_results)
-
-            print("\n📊 СТАТИСТИКА ПО ДЛИНЕ ОТВЕТОВ")
-            print(f"  • Всего ответов: {stats.get('total_answers', 0)}")
-            print(f"  • Средняя длина: {stats.get('avg_length', 0)} символов")
-            print(f"  • Минимальная: {stats.get('min_length', 0)} символов")
-            print(f"  • Максимальная: {stats.get('max_length', 0)} символов")
-            print(f"  • Всего символов: {stats.get('total_chars', 0)}")
-
-            # Сохраняем данные локально (для бэкапа)
-            export_data = {
-                'metadata': {
-                    'url': 'https://coinmarketcap.com/cmc-ai/ask/',
-                    'parsed_at': datetime.now().isoformat(),
-                    'total_questions_found': len(questions_list),
-                    'questions_processed': len(all_results),
-                    'failed_questions': len(failed_questions),
-                    'statistics': stats
-                },
-                'questions_list': questions_list,
-                'all_results': all_results,
-                'failed_questions': failed_questions
+            # Загружаем историю публикаций
+            history = load_publication_history()
+            
+            # Определяем текущий час UTC
+            current_hour = datetime.now(timezone.utc).hour
+            scheduled_group = SCHEDULE.get(current_hour)
+            
+            if not scheduled_group:
+                raise Exception(f"Нет расписания для часа {current_hour}")
+            
+            logger.info(f"\n⏰ Текущий час UTC: {current_hour}")
+            logger.info(f"📅 По расписанию должна быть группа: {scheduled_group}")
+            
+            # Определяем какой вопрос публиковать
+            question_to_publish = None
+            
+            if scheduled_group == "DYNAMIC":
+                logger.info("\n🎯 Динамический слот!")
+                
+                # Находим динамический вопрос
+                dynamic_question = None
+                for q in questions_list:
+                    if get_question_group(q) == "dynamic":
+                        dynamic_question = q
+                        break
+                
+                if dynamic_question:
+                    last_dynamic = history.get("last_dynamic_question", "")
+                    
+                    if dynamic_question != last_dynamic:
+                        logger.info(f"✨ Динамический вопрос изменился!")
+                        logger.info(f"   Старый: {last_dynamic}")
+                        logger.info(f"   Новый: {dynamic_question}")
+                        question_to_publish = dynamic_question
+                        
+                        # Обновляем историю динамического вопроса
+                        history["last_dynamic_question"] = dynamic_question
+                    else:
+                        logger.info(f"⚠️ Динамический вопрос не изменился: {dynamic_question}")
+                        logger.info(f"   Ищем самый старый вопрос...")
+                        oldest_group = get_oldest_question_group(history)
+                        question_to_publish = find_question_by_group(questions_list, oldest_group)
+                        if question_to_publish:
+                            scheduled_group = oldest_group
+                        else:
+                            logger.warning(f"⚠️ Не найден вопрос для группы {oldest_group}, публикуем динамический")
+                            question_to_publish = dynamic_question
+                            scheduled_group = "DYNAMIC"
+                else:
+                    logger.warning("⚠️ Динамический вопрос не найден на странице")
+                    logger.info("   Публикуем самый старый вопрос...")
+                    oldest_group = get_oldest_question_group(history)
+                    question_to_publish = find_question_by_group(questions_list, oldest_group)
+                    if question_to_publish:
+                        scheduled_group = oldest_group
+                    else:
+                        raise Exception(f"Критическая ошибка: не найден вопрос для {oldest_group}")
+            else:
+                # Обычный слот по расписанию
+                question_to_publish = find_question_by_group(questions_list, scheduled_group)
+            
+            if not question_to_publish:
+                logger.error("✗ Не удалось найти вопрос для публикации!")
+                logger.error("📋 Доступные вопросы:")
+                for q in questions_list:
+                    logger.error(f"   - {q} [{get_question_group(q)}]")
+                
+                raise Exception("Не найден вопрос для публикации")
+            
+            logger.info(f"\n✅ Выбран вопрос для публикации: {question_to_publish}")
+            
+            # Парсим ответ на выбранный вопрос с повторными попытками
+            result = None
+            for retry in range(MAX_RETRIES + 1):
+                if retry > 0:
+                    logger.info(f"\n🔄 Повторная попытка {retry}/{MAX_RETRIES}")
+                    await reset_to_question_list(page)
+                    await asyncio.sleep(3)
+                
+                result = await click_and_get_response(page, question_to_publish, attempt_num=retry + 1)
+                
+                if result:
+                    break
+            
+            if not result:
+                raise Exception(f"Не удалось получить ответ после {MAX_RETRIES + 1} попыток")
+            
+            # Отправляем в Telegram
+            logger.info("\n📤 ОТПРАВКА В TELEGRAM")
+            send_success = send_question_answer_to_telegram(result['question'], result['answer'])
+            
+            if not send_success:
+                logger.warning("⚠️ Ошибка отправки в Telegram, но продолжаем")
+            
+            # Обновляем историю публикаций
+            if scheduled_group == "DYNAMIC":
+                history["dynamic_published_at"] = datetime.now(timezone.utc).isoformat()
+                history["last_published"]["dynamic"] = datetime.now(timezone.utc).isoformat()
+            else:
+                history["last_published"][scheduled_group] = datetime.now(timezone.utc).isoformat()
+            
+            # Сохраняем дополнительную информацию для отладки
+            history["last_publication"] = {
+                "question": result['question'],
+                "group": scheduled_group,
+                "published_at": datetime.now(timezone.utc).isoformat(),
+                "hour_utc": current_hour,
+                "answer_length": result['length']
             }
-
-            json_file = save_to_json(export_data, 'cmc_full_data.json')
-
-            if all_results:
-                csv_file = save_to_csv(all_results, 'cmc_questions_answers.csv')
-
-            # Сохраняем полный отчет в текстовый файл
-            print("\n📄 СОХРАНЕНИЕ ПОЛНОГО ОТЧЕТА")
-            full_report_file = save_full_report_to_file(all_results, 'full_report.txt')
-
-            # Отправляем результаты в Telegram (только TLDR)
-            print("\n📤 ОТПРАВКА КРАТКИХ РЕЗУЛЬТАТОВ В TELEGRAM")
-            send_all_results_to_telegram(all_results)
-
-            print(f"\n🎯 ИТОГОВАЯ СТАТИСТИКА")
-            print(f"  ✓ Найдено вопросов: {len(questions_list)}")
-            print(f"  ✓ Успешно обработано: {len(all_results)}")
-            print(f"  ✗ Не удалось обработать: {len(failed_questions)}")
-            print(f"  📊 Средняя длина ответа: {stats.get('avg_length', 0)} символов")
-            print(f"  💾 Сохранено файлов локально: 3 (JSON, CSV, Full Report)")
-            print(f"  📱 Отправлено в Telegram: {len(all_results)} кратких сообщений (TLDR)")
-            if full_report_file:
-                print(f"  📄 Полный отчет: {full_report_file}")
+            
+            save_publication_history(history)
+            
+            logger.info(f"\n🎯 ИТОГ")
+            logger.info(f"  ✓ Вопрос: {result['question']}")
+            logger.info(f"  ✓ Группа: {scheduled_group}")
+            logger.info(f"  ✓ Длина ответа: {result['length']} символов")
+            logger.info(f"  ✓ Опубликовано в Telegram: {send_success}")
+            logger.info("="*70)
 
             await browser.close()
-            print("✓ Браузер закрыт\n")
+            logger.info("✓ Браузер закрыт\n")
+            
+            return True
 
-        except Exception as e:
-            print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
-            traceback.print_exc()
+    except Exception as e:
+        logger.error(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        logger.error(traceback.format_exc())
+        
+        # Пытаемся закрыть браузер при ошибке
+        try:
+            if browser:
+                await browser.close()
+        except:
+            pass
+        
+        # Отправляем уведомление об ошибке в Telegram
+        try:
+            current_hour = datetime.now(timezone.utc).hour
+            scheduled_group = SCHEDULE.get(current_hour, "unknown")
             
             error_message = f"""<b>❌ ОШИБКА ПАРСЕРА</b>
-⏰ {datetime.now().strftime("%Y-%m-%d %H:%M")}
-<b>Ошибка:</b> <code>{str(e)[:1000]}</code>"""
+
+⏰ <b>Время:</b> {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")} UTC
+🕐 <b>Час UTC:</b> {current_hour}
+📋 <b>Запланированная группа:</b> {scheduled_group}
+
+<b>Ошибка:</b>
+<code>{str(e)[:1000]}</code>
+
+<i>Парсер будет повторен в следующий час</i>"""
+            
             send_telegram_message(error_message)
+        except Exception as notification_error:
+            logger.error(f"Не удалось отправить уведомление об ошибке: {notification_error}")
+        
+        return False
+
 
 def main():
-    """Запуск парсера"""
-    print("="*70)
-    print("🚀 УЛУЧШЕННЫЙ ПАРСЕР COINMARKETCAP AI")
-    print("="*70)
-    print("\n📋 ВОЗМОЖНОСТИ:")
-    print("  ✅ Обработка всех 8 вопросов")
-    print("  ✅ Повторные попытки для пропущенных")
-    print("  ✅ Каждый вопрос/ответ отдельным сообщением в Telegram")
-    print("  ✅ Без лишних файлов и статистики в чате")
-    print(f"\n⚙️  НАСТРОЙКИ:")
-    print(f"  • Максимум вопросов: {MAX_QUESTIONS}")
-    print(f"  • Повторных попыток: {MAX_RETRIES}")
-    print("\n" + "="*70 + "\n")
-    
-    asyncio.run(main_parser())
-    
-    print("\n✅ ВСЕ ОПЕРАЦИИ ЗАВЕРШЕНЫ!")
-    print("="*70)
+    """Точка входа в программу"""
+    try:
+        logger.info("\n" + "="*70)
+        logger.info("🤖 COINMARKETCAP AI PARSER - SCHEDULED MODE")
+        logger.info("="*70)
+        logger.info(f"📅 Дата запуска: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
+        logger.info(f"⚙️  Настройки:")
+        logger.info(f"   • MAX_RETRIES: {MAX_RETRIES}")
+        logger.info(f"   • Telegram Bot Token: {'✓ Установлен' if TELEGRAM_BOT_TOKEN else '✗ Не установлен'}")
+        logger.info(f"   • Telegram Chat ID: {'✓ Установлен' if TELEGRAM_CHAT_ID else '✗ Не установлен'}")
+        logger.info("="*70 + "\n")
+        
+        # Запускаем основной парсер
+        success = asyncio.run(main_parser())
+        
+        if success:
+            logger.info("\n✅ ПАРСИНГ ЗАВЕРШЕН УСПЕШНО!")
+            sys.exit(0)
+        else:
+            logger.error("\n❌ ПАРСИНГ ЗАВЕРШЕН С ОШИБКОЙ!")
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        logger.info("\n⚠️ Парсинг прерван пользователем (Ctrl+C)")
+        sys.exit(130)
+    except Exception as e:
+        logger.error(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА В MAIN: {e}")
+        logger.error(traceback.format_exc())
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
