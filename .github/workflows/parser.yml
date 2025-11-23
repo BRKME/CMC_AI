@@ -10,46 +10,54 @@ on:
 jobs:
   parse:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         persist-credentials: true
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
-    - name: Install Playwright
+    - name: Install Python dependencies
       run: |
+        pip install --upgrade pip
         pip install playwright beautifulsoup4 requests
+    
+    - name: Install Playwright browsers
+      run: |
         playwright install chromium
-        playwright install-deps
+        playwright install-deps chromium
     
     - name: Run parser
       env:
         MAX_RETRIES: 2
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
-        python parser_scheduled.py
+        python cmc_parser_v1_tested.py
     
     - name: Commit publication history
+      if: always()
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add publication_history.json
-        git diff --quiet && git diff --staged --quiet || git commit -m "Update publication history [skip ci]"
-        git push
+        git add publication_history.json || true
+        git diff --quiet && git diff --staged --quiet || (git commit -m "📊 Update publication history [skip ci]" && git push) || true
       continue-on-error: true
     
-    - name: Upload artifacts on failure
+    - name: Upload logs on failure
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: debug-logs
+        name: parser-logs-${{ github.run_number }}
         path: |
-          *.log
+          parser.log
           *.txt
         retention-days: 7
+        if-no-files-found: ignore
