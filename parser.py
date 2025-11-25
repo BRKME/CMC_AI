@@ -20,6 +20,19 @@ import os
 import sys
 import random
 import logging
+import tweepy
+from io import BytesIO
+import tempfile
+import platform
+import re
+
+# Пытаемся импортировать fcntl (только Unix) - FIX BUG #15
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    # На Windows fcntl недоступен - используем альтернативный механизм
 
 # Настройка логирования
 logging.basicConfig(
@@ -36,8 +49,18 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = int(os.getenv('MAX_RETRIES', '2'))
 
 # Telegram настройки
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN') or '8323539910:AAG6DYij-FuqT7q-ovsBNNgEnWH2V6FXhoM'
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID') or '-1003445906500'
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+
+# Twitter API настройки (только из Secrets)
+TWITTER_API_KEY = os.getenv('TWITTER_API_KEY')
+TWITTER_API_SECRET = os.getenv('TWITTER_API_SECRET')
+TWITTER_ACCESS_TOKEN = os.getenv('TWITTER_ACCESS_TOKEN')
+TWITTER_ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+TWITTER_BEARER_TOKEN = os.getenv('TWITTER_BEARER_TOKEN')
+
+# Включить/выключить Twitter (для тестирования)
+TWITTER_ENABLED = os.getenv('TWITTER_ENABLED', 'true').lower() == 'true'
 
 # GitHub настройки для картинок
 GITHUB_IMAGES_URL = "https://raw.githubusercontent.com/BRKME/coinmarketcap-parser/main/Images1/"
@@ -147,6 +170,232 @@ def get_question_group(question_text):
         return "altcoins"
     
     return "dynamic"
+
+def get_lock_file_path():
+    """Возвращает путь к lock-файлу (кросс-платформенный) - FIX BUG #16"""
+    if platform.system() == 'Windows':
+        return os.path.join(tempfile.gettempdir(), 'cmc_parser.lock')
+    else:
+        return '/tmp/cmc_parser.lock'
+
+def is_process_running(pid):
+    """Проверяет что процесс с PID запущен - FIX BUG #18"""
+    try:
+        os.kill(pid, 0)  # Signal 0 = проверка существования
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+def acquire_lock():
+    """
+    Создает lock-файл для предотвращения параллельного запуска
+    FIX BUG #12, #15, #16, #18
+    Возвращает (file_handle, path) или (None, None) если уже запущен
+    """
+    lock_path = get_lock_file_path()
+    
+    # Проверяем существующий lock (FIX BUG #18 - stale lock)
+    if os.path.exists(lock_path):
+        try:
+            with open(lock_path, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    lines = content.split('\n')
+                    try:
+                        old_pid = int(lines[0])
+                        
+                        # Проверяем что процесс жив
+                        if is_process_running(old_pid):
+                            logger.error(f"✗ Парсер уже запущен (PID: {old_pid})")
+                            return None, None
+                        else:
+                            logger.warning(f"⚠️ Найден stale lock от процесса {old_pid}, удаляю")
+                            os.remove(lock_path)
+                    except (ValueError, IndexError):
+                        logger.warning(f"⚠️ Поврежденный lock-файл, удаляю")
+                        os.remove(lock_path)
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка чтения lock-файла: {e}, удаляю")
+            try:
+                os.remove(lock_path)
+            except:
+                pass
+    
+    # Создаем новый lock
+    try:
+        lock_file = open(lock_path, 'w')
+        
+        # Используем fcntl только если доступен (Unix)
+        if HAS_FCNTL:
+            try:
+                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except IOError:
+                lock_file.close()
+                return None, None
+        
+        lock_file.write(f"{os.getpid()}\n{datetime.now(timezone.utc).isoformat()}")
+        lock_file.flush()
+        
+        logger.info(f"✓ Lock-файл создан: {lock_path}")
+        return lock_file, lock_path
+        
+    except Exception as e:
+        logger.error(f"✗ Ошибка создания lock-файла: {e}")
+        return None, None
+
+def release_lock(lock_file, lock_path):
+    """Освобождает lock-файл - FIX BUG #17"""
+    try:
+        if lock_file:
+            if HAS_FCNTL:
+                try:
+                    fcntl.flock(lock_file, fcntl.LOCK_UN)
+                except:
+                    pass
+            lock_file.close()
+        
+        if lock_path and os.path.exists(lock_path):
+            os.remove(lock_path)
+            logger.info(f"✓ Lock-файл удален: {lock_path}")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось удалить lock-файл: {e}")
+
+def get_twitter_length(text):
+    """
+    Вычисляет длину текста как Twitter (emoji = 2 символа) - FIX BUG #23
+    """
+    if not text:
+        return 0
+    
+    # Паттерн для emoji
+    emoji_pattern = re.compile("["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map
+        "\U0001F1E0-\U0001F1FF"  # flags
+        "\U00002702-\U000027B0"  # dingbats
+        "\U000024C2-\U0001F251"  # enclosed characters
+        "]+", flags=re.UNICODE)
+    
+    emoji_count = len(emoji_pattern.findall(text))
+    return len(text) + emoji_count  # Каждый emoji добавляет +1
+
+def validate_telegram_credentials():
+    """Проверяет что Telegram токены валидные - FIX BUG #20"""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        logger.warning("⚠️ Telegram credentials не установлены")
+        return False
+    
+    try:
+        # Тестовый запрос getMe
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getMe"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code != 200:
+            logger.error(f"✗ Telegram токен невалидный: {response.status_code}")
+            return False
+        
+        bot_info = response.json()
+        if not bot_info.get('ok'):
+            logger.error("✗ Telegram токен невалидный")
+            return False
+        
+        bot_username = bot_info.get('result', {}).get('username', 'unknown')
+        logger.info(f"✓ Telegram бот: @{bot_username}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"✗ Ошибка проверки Telegram credentials: {e}")
+        return False
+
+def validate_image_availability(sample_size=3):
+    """Проверяет что картинки доступны (выборочно) - FIX BUG #21, #25"""
+    if not IMAGE_FILES:
+        logger.warning("⚠️ Список картинок пуст")
+        logger.warning("   Публикация будет без картинок (только текст)")
+        return True  # Не критично, можно продолжать без картинок
+    
+    logger.info(f"🔍 Проверка доступности картинок ({sample_size} из {len(IMAGE_FILES)})...")
+    
+    # Проверяем случайные картинки
+    sample = random.sample(IMAGE_FILES, min(sample_size, len(IMAGE_FILES)))
+    
+    if not sample:
+        logger.warning("⚠️ Нечего проверять")
+        return True
+    
+    failed = 0
+    for img in sample:
+        url = GITHUB_IMAGES_URL + img
+        try:
+            response = requests.head(url, timeout=5)
+            if response.status_code == 200:
+                logger.info(f"  ✓ {img}")
+            else:
+                logger.warning(f"  ⚠️ {img} - статус {response.status_code}")
+                failed += 1
+        except Exception as e:
+            logger.warning(f"  ✗ {img} - ошибка: {e}")
+            failed += 1
+    
+    if failed == len(sample):
+        logger.error("✗ Все проверенные картинки недоступны!")
+        logger.error(f"   Проверьте URL: {GITHUB_IMAGES_URL}")
+        logger.warning("   Продолжаем без картинок (только текст)")
+        return True  # Не блокируем выполнение
+    elif failed > 0:
+        logger.warning(f"⚠️ {failed}/{len(sample)} картинок недоступны (продолжаем)")
+        return True
+    else:
+        logger.info(f"✓ Картинки доступны")
+        return True
+
+def validate_display_config():
+    """
+    Валидирует конфигурацию отображения (FIX BUG #7, #9, #10)
+    Проверяет что заголовки и хэштеги не слишком длинные
+    """
+    logger.info("🔍 Валидация конфигурации отображения...")
+    
+    warnings_count = 0
+    errors_count = 0
+    
+    for question, config in QUESTION_DISPLAY_CONFIG.items():
+        title = config.get("title", "")
+        hashtags = config.get("hashtags", "")
+        
+        # Проверка длины заголовка
+        if len(title) > 50:
+            logger.error(f"✗ Слишком длинный заголовок для '{question[:30]}...': {len(title)} символов (максимум 50)")
+            errors_count += 1
+        elif len(title) > 40:
+            logger.warning(f"⚠️ Длинный заголовок для '{question[:30]}...': {len(title)} символов (рекомендуется < 40)")
+            warnings_count += 1
+        
+        # Проверка длины хэштегов (FIX BUG #10)
+        if len(hashtags) > 120:
+            logger.error(f"✗ Критически длинные хэштеги для '{question[:30]}...': {len(hashtags)} символов (максимум 120)")
+            errors_count += 1
+        elif len(hashtags) > 80:
+            logger.warning(f"⚠️ Длинные хэштеги для '{question[:30]}...': {len(hashtags)} символов (рекомендуется < 80)")
+            warnings_count += 1
+        
+        # Проверка места для текста (минимум 100 символов!)
+        min_text_space = 270 - len(title) - len(hashtags) - 6
+        if min_text_space < 100:
+            logger.error(f"✗ Недостаточно места для текста в '{question[:30]}...': {min_text_space} символов (минимум 100)")
+            logger.error(f"   Заголовок: {len(title)} + Хэштеги: {len(hashtags)} = слишком много!")
+            errors_count += 1
+    
+    if errors_count > 0:
+        logger.error(f"✗ Найдено {errors_count} критических ошибок в конфигурации")
+        logger.error(f"   Исправьте QUESTION_DISPLAY_CONFIG перед запуском!")
+    elif warnings_count > 0:
+        logger.warning(f"⚠️ Конфигурация валидна с {warnings_count} предупреждениями")
+    else:
+        logger.info("✓ Конфигурация полностью валидна")
+    
+    return errors_count == 0
 
 def load_publication_history():
     """Загружает историю публикаций из JSON файла"""
@@ -376,6 +625,263 @@ def clean_question_specific_text(question, text):
         logger.error(f"⚠️ Ошибка очистки текста: {e}")
         return text
 
+def smart_shorten_for_twitter(text, title, hashtags, max_total=270):
+    """
+    Умное сокращение текста для Twitter (макс 280 символов)
+    Сохраняет полные предложения и не обрезает слова
+    FIX BUG #23 - учитывает emoji как 2 символа
+    """
+    import re
+    
+    # Резервируем место под заголовок, хэштеги и форматирование
+    # Формат: "Title\n\n[text]\n\n#hashtags"
+    # Используем get_twitter_length для правильного подсчета с emoji
+    reserved = get_twitter_length(title) + get_twitter_length(hashtags) + 6
+    available_for_text = max_total - reserved
+    
+    # Защита от слишком длинных заголовков/хэштегов (FIX BUG #8)
+    # Минимум 100 символов для контента (было 50 - слишком мало!)
+    if available_for_text < 100:
+        logger.error(f"✗ Недостаточно места для текста: {available_for_text} символов")
+        logger.error(f"   Заголовок: {get_twitter_length(title)} символов (Twitter length)")
+        logger.error(f"   Хэштеги: {get_twitter_length(hashtags)} символов (Twitter length)")
+        
+        # Экстренная мера: агрессивно сокращаем хэштеги
+        if get_twitter_length(hashtags) > 80:
+            logger.warning("   Сокращаю хэштеги до первых 3-х для освобождения места")
+            hashtags_list = hashtags.split()[:3]
+            hashtags = " ".join(hashtags_list)
+            logger.warning(f"   Хэштеги сокращены до: {hashtags}")
+            
+            reserved = get_twitter_length(title) + get_twitter_length(hashtags) + 6
+            available_for_text = max_total - reserved
+            logger.info(f"   Теперь доступно: {available_for_text} символов")
+        elif get_twitter_length(hashtags) > 50:
+            hashtags_list = hashtags.split()[:5]
+            hashtags = " ".join(hashtags_list)
+            reserved = get_twitter_length(title) + get_twitter_length(hashtags) + 6
+            available_for_text = max_total - reserved
+    
+    # Убираем избыточные пробелы, но сохраняем структуру (FIX BUG #5)
+    text = re.sub(r'\n\s*\n+', '\n\n', text)
+    text = re.sub(r' +', ' ', text)
+    text = text.strip()
+    
+    # Если текст влезает полностью
+    if get_twitter_length(text) <= available_for_text:
+        return text
+    
+    # Разбиваем на предложения
+    sentences = re.split(r'([.!?]+\s*)', text)
+    sentences = ["".join(sentences[i:i+2]).strip() 
+                 for i in range(0, len(sentences)-1, 2) if sentences[i].strip()]
+    
+    # Собираем предложения пока влезают
+    result = []
+    current_length = 0
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        
+        sent_length = get_twitter_length(sentence)
+        
+        if current_length + sent_length + 1 <= available_for_text:
+            result.append(sentence)
+            current_length += sent_length + 1
+        else:
+            if not result:
+                # Обрезаем по последнему слову
+                words = sentence.split()
+                shortened = []
+                for word in words:
+                    test_text = " ".join(shortened + [word])
+                    if get_twitter_length(test_text) + 3 <= available_for_text:
+                        shortened.append(word)
+                    else:
+                        break
+                if shortened:
+                    return " ".join(shortened) + "..."
+                else:
+                    return sentence[:available_for_text-3] + "..."
+            break
+    
+    return " ".join(result)
+
+def init_twitter_client():
+    """Инициализирует Twitter API клиент"""
+    try:
+        # Проверяем обязательные ключи (Bearer Token опциональный!)
+        if not all([TWITTER_API_KEY, TWITTER_API_SECRET, 
+                    TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
+            logger.warning("⚠️ Twitter API ключи не установлены (нужны: API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)")
+            return None
+        
+        # Bearer Token опциональный - нужен только для read операций
+        if not TWITTER_BEARER_TOKEN:
+            logger.info("ℹ️  Bearer Token не установлен (опционально для постинга)")
+        
+        # Tweepy v2 Client для API v2
+        client = tweepy.Client(
+            bearer_token=TWITTER_BEARER_TOKEN,  # Может быть None - это ОК для постинга
+            consumer_key=TWITTER_API_KEY,
+            consumer_secret=TWITTER_API_SECRET,
+            access_token=TWITTER_ACCESS_TOKEN,
+            access_token_secret=TWITTER_ACCESS_TOKEN_SECRET,
+            wait_on_rate_limit=True
+        )
+        
+        # API v1.1 для загрузки медиа (картинок)
+        auth = tweepy.OAuth1UserHandler(
+            TWITTER_API_KEY,
+            TWITTER_API_SECRET,
+            TWITTER_ACCESS_TOKEN,
+            TWITTER_ACCESS_TOKEN_SECRET
+        )
+        api = tweepy.API(auth)
+        
+        logger.info("✓ Twitter API клиент инициализирован")
+        return {"client": client, "api": api}
+        
+    except Exception as e:
+        logger.error(f"✗ Ошибка инициализации Twitter API: {e}")
+        return None
+
+def send_to_twitter(title, text, hashtags, image_url):
+    """
+    Отправляет твит с картинкой
+    Возвращает True если успешно
+    """
+    try:
+        if not TWITTER_ENABLED:
+            logger.info("ℹ️  Twitter отключен (TWITTER_ENABLED=false)")
+            return False
+        
+        logger.info("\n🐦 ОТПРАВКА В TWITTER")
+        
+        # Инициализируем клиент
+        twitter = init_twitter_client()
+        if not twitter:
+            logger.error("✗ Не удалось инициализировать Twitter клиент")
+            return False
+        
+        client = twitter["client"]
+        api = twitter["api"]
+        
+        # Умное сокращение текста для Twitter
+        shortened_text = smart_shorten_for_twitter(text, title, hashtags, max_total=270)
+        
+        # Формируем твит
+        tweet_text = f"{title}\n\n{shortened_text}\n\n{hashtags}"
+        
+        # Проверяем длину
+        if len(tweet_text) > 280:
+            logger.warning(f"⚠️ Твит слишком длинный ({len(tweet_text)} символов), дополнительное сокращение...")
+            # Экстренное сокращение
+            max_text_length = 270 - len(title) - len(hashtags) - 6
+            shortened_text = text[:max_text_length-3] + "..."
+            tweet_text = f"{title}\n\n{shortened_text}\n\n{hashtags}"
+        
+        logger.info(f"📏 Длина твита: {len(tweet_text)} символов")
+        
+        # Загружаем картинку
+        media_id = None
+        try:
+            logger.info(f"🖼️  Загрузка картинки: {image_url}")
+            
+            # Скачиваем картинку
+            response = requests.get(image_url, timeout=30)
+            if response.status_code == 200:
+                # Загружаем в Twitter
+                media = api.media_upload(filename="image.jpg", file=BytesIO(response.content))
+                media_id = media.media_id
+                logger.info(f"✓ Картинка загружена, media_id: {media_id}")
+            else:
+                logger.warning(f"⚠️ Не удалось скачать картинку: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка загрузки картинки: {e}")
+        
+        # Публикуем твит
+        try:
+            if media_id:
+                response = client.create_tweet(text=tweet_text, media_ids=[media_id])
+            else:
+                response = client.create_tweet(text=tweet_text)
+            
+            # Проверка response (FIX BUG #19, #24)
+            if not response or not hasattr(response, 'data'):
+                logger.error("✗ Получен пустой ответ от Twitter API")
+                return False
+            
+            # Универсальное получение ID (dict или объект)
+            tweet_id = None
+            try:
+                # Пробуем как dict
+                if hasattr(response.data, 'get'):
+                    tweet_id = response.data.get('id')
+                # Пробуем как объект
+                elif hasattr(response.data, 'id'):
+                    tweet_id = response.data.id
+                # Fallback - прямой доступ
+                else:
+                    tweet_id = response.data['id'] if 'id' in response.data else None
+            except Exception as e:
+                logger.error(f"✗ Ошибка получения ID твита: {e}")
+                return False
+            
+            if not tweet_id:
+                logger.error("✗ В ответе Twitter отсутствует ID твита")
+                logger.error(f"   Response data: {response.data}")
+                return False
+            
+            tweet_url = f"https://twitter.com/user/status/{tweet_id}"
+            
+            logger.info(f"✓ Твит опубликован: {tweet_url}")
+            logger.info(f"📊 ID твита: {tweet_id}")
+            
+            return True
+            
+        except tweepy.TweepyException as e:
+            error_str = str(e)
+            logger.error(f"✗ Ошибка публикации твита: {e}")
+            
+            # Rate limit - не критично (FIX BUG #13)
+            if "rate limit" in error_str.lower() or "429" in error_str or "code\":88" in error_str:
+                logger.warning("⚠️ Twitter API rate limit достигнут")
+                logger.warning("   Пропускаем публикацию в Twitter (Telegram опубликован)")
+                return True  # Считаем успехом - Telegram опубликован
+            
+            # Если дубликат - это не критично (уже опубликовано ранее) (FIX BUG #4)
+            if "duplicate" in error_str.lower() or "already" in error_str.lower() or "code\":187" in error_str:
+                logger.warning("⚠️ Твит был опубликован ранее (дубликат)")
+                return True  # Считаем успехом
+            
+            # Пробуем без картинки только при других ошибках
+            if media_id:
+                logger.info("🔄 Повторная попытка без картинки...")
+                try:
+                    response = client.create_tweet(text=tweet_text)
+                    
+                    # Проверка response
+                    if response and hasattr(response, 'data') and 'id' in response.data:
+                        tweet_id = response.data['id']
+                        logger.info(f"✓ Твит опубликован без картинки, ID: {tweet_id}")
+                        return True
+                    else:
+                        logger.error("✗ Получен некорректный ответ")
+                        return False
+                        
+                except Exception as e2:
+                    logger.error(f"✗ Не удалось опубликовать даже без картинки: {e2}")
+            
+            return False
+    
+    except Exception as e:
+        logger.error(f"✗ Критическая ошибка отправки в Twitter: {e}")
+        traceback.print_exc()
+        return False
+
 def send_question_answer_to_telegram(question, answer):
     """Отправляет вопрос и TLDR в Telegram с картинкой. Возвращает True если успешно."""
     try:
@@ -404,15 +910,43 @@ def send_question_answer_to_telegram(question, answer):
         
         image_url = get_random_image_url()
         
-        logger.info(f"\n📤 Отправка в Telegram...")
+        logger.info(f"\n📤 ОТПРАВКА В TELEGRAM")
         logger.info(f"📋 Заголовок: {title}")
         logger.info(f"📏 Длина TLDR: {len(tldr_text)} символов")
         logger.info(f"🏷 Хэштеги: {hashtags}")
         
-        result = send_telegram_photo_with_caption(image_url, short_message)
+        # Отправляем в Telegram
+        telegram_success = send_telegram_photo_with_caption(image_url, short_message)
         time.sleep(1)
         
-        return result
+        # Отправляем в Twitter (параллельно) (FIX BUG #1, #11)
+        twitter_success = False
+        twitter_status = "Отключен"
+        
+        if TWITTER_ENABLED:
+            # Проверяем что ключи установлены
+            if all([TWITTER_API_KEY, TWITTER_API_SECRET, 
+                    TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
+                try:
+                    twitter_success = send_to_twitter(title, tldr_text, hashtags, image_url)
+                    twitter_status = "✓ Успешно" if twitter_success else "✗ Ошибка"
+                except Exception as e:
+                    logger.error(f"✗ Ошибка отправки в Twitter: {e}")
+                    traceback.print_exc()
+                    twitter_success = False
+                    twitter_status = "✗ Ошибка"
+            else:
+                logger.warning("⚠️ Twitter включен, но API ключи не установлены")
+                logger.warning("   Добавьте TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET в GitHub Secrets")
+                twitter_success = False
+                twitter_status = "Не настроен (нет ключей)"
+        
+        # Логируем итоги
+        logger.info(f"\n📊 РЕЗУЛЬТАТЫ ПУБЛИКАЦИИ:")
+        logger.info(f"  Telegram: {'✓ Успешно' if telegram_success else '✗ Ошибка'}")
+        logger.info(f"  Twitter: {twitter_status}")
+        
+        return telegram_success
         
     except Exception as e:
         logger.error(f"✗ Ошибка при отправке: {e}")
@@ -710,13 +1244,27 @@ async def main_parser():
                 # Обычный слот по расписанию
                 question_to_publish = find_question_by_group(questions_list, scheduled_group)
             
+            # Fallback если вопрос для группы не найден (FIX BUG #14)
             if not question_to_publish:
-                logger.error("✗ Не удалось найти вопрос для публикации!")
-                logger.error("📋 Доступные вопросы:")
-                for q in questions_list:
-                    logger.error(f"   - {q} [{get_question_group(q)}]")
+                logger.warning(f"⚠️ Не найден вопрос для группы '{scheduled_group}'")
+                logger.warning(f"   Пытаюсь найти любой доступный вопрос...")
                 
-                raise Exception("Не найден вопрос для публикации")
+                # Пробуем найти хоть что-то из стандартных групп
+                for fallback_group in ["kols", "sentiment", "events", "bullish", "narratives", "altcoins"]:
+                    question_to_publish = find_question_by_group(questions_list, fallback_group)
+                    if question_to_publish:
+                        logger.info(f"✓ Найден вопрос из группы '{fallback_group}': {question_to_publish}")
+                        scheduled_group = fallback_group
+                        break
+                
+                # Если совсем ничего - берем первый доступный
+                if not question_to_publish and questions_list:
+                    question_to_publish = questions_list[0]
+                    scheduled_group = get_question_group(question_to_publish)
+                    logger.info(f"✓ Выбран первый доступный вопрос: {question_to_publish}")
+            
+            if not question_to_publish:
+                raise Exception("Критическая ошибка: на странице нет вопросов!")
             
             logger.info(f"\n✅ Выбран вопрос для публикации: {question_to_publish}")
             
@@ -809,19 +1357,56 @@ async def main_parser():
 
 def main():
     """Точка входа в программу"""
+    lock_file = None
+    lock_path = None
+    
     try:
+        # Проверка lock-файла (FIX BUG #12, #15, #16, #17, #18)
+        lock_file, lock_path = acquire_lock()
+        if not lock_file:
+            logger.error("\n✗ Парсер уже запущен!")
+            logger.error(f"   Дождитесь завершения предыдущего запуска или удалите {get_lock_file_path()}")
+            sys.exit(2)  # Exit code 2 = already running
+        
         logger.info("\n" + "="*70)
         logger.info("🤖 COINMARKETCAP AI PARSER - SCHEDULED MODE")
         logger.info("="*70)
         logger.info(f"📅 Дата запуска: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
+        logger.info(f"💻 Платформа: {platform.system()} {platform.release()}")
+        logger.info(f"🔒 Lock файл: {lock_path}")
         logger.info(f"⚙️  Настройки:")
         logger.info(f"   • MAX_RETRIES: {MAX_RETRIES}")
         logger.info(f"   • Telegram Bot Token: {'✓ Установлен' if TELEGRAM_BOT_TOKEN else '✗ Не установлен'}")
         logger.info(f"   • Telegram Chat ID: {'✓ Установлен' if TELEGRAM_CHAT_ID else '✗ Не установлен'}")
+        logger.info(f"   • Twitter API: {'✓ Установлен' if all([TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]) else '✗ Не установлен'}")
+        logger.info(f"   • Twitter Enabled: {'✓ Да' if TWITTER_ENABLED else '✗ Нет'}")
+        logger.info(f"   • fcntl available: {'✓ Да' if HAS_FCNTL else '✗ Нет (Windows)'}")
         logger.info("="*70 + "\n")
+        
+        # Валидация Telegram credentials (FIX BUG #20)
+        if not validate_telegram_credentials():
+            logger.error("✗ КРИТИЧЕСКАЯ ОШИБКА: Невалидные Telegram credentials!")
+            logger.error("   Проверьте TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID")
+            release_lock(lock_file, lock_path)
+            sys.exit(1)
+        
+        # Валидация конфигурации перед запуском (FIX BUG #9)
+        if not validate_display_config():
+            logger.error("\n✗ КРИТИЧЕСКАЯ ОШИБКА: Конфигурация невалидна!")
+            logger.error("   Исправьте ошибки в QUESTION_DISPLAY_CONFIG и перезапустите")
+            release_lock(lock_file, lock_path)
+            sys.exit(1)
+        
+        # Проверка доступности картинок (FIX BUG #21)
+        validate_image_availability(sample_size=3)
+        
+        logger.info("")
         
         # Запускаем основной парсер
         success = asyncio.run(main_parser())
+        
+        # Освобождаем lock
+        release_lock(lock_file, lock_path)
         
         if success:
             logger.info("\n✅ ПАРСИНГ ЗАВЕРШЕН УСПЕШНО!")
@@ -832,10 +1417,12 @@ def main():
             
     except KeyboardInterrupt:
         logger.info("\n⚠️ Парсинг прерван пользователем (Ctrl+C)")
+        release_lock(lock_file, lock_path)
         sys.exit(130)
     except Exception as e:
         logger.error(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА В MAIN: {e}")
         logger.error(traceback.format_exc())
+        release_lock(lock_file, lock_path)
         sys.exit(1)
 
 
