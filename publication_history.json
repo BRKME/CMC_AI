@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2025-11-26T20:29:46.818629+00:00",
     "dynamic": "2025-11-26T21:24:51.615809+00:00",
-    "market_direction": "2025-11-26T22:27:12.341284+00:00",
+    "market_direction": "2025-11-27T02:04:19.396667+00:00",
     "narratives": "2025-11-26T23:26:09.961006+00:00",
     "events": "2025-11-26T19:21:41.185904+00:00",
     "sentiment": "2025-11-26T17:26:28.750458+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "How much USDC minted on SOL?",
   "dynamic_published_at": "2025-11-26T21:24:51.615789+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2025-11-26T23:26:09.961021+00:00",
-    "hour_utc": 23,
-    "answer_length": 2680
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2025-11-27T02:04:19.396684+00:00",
+    "hour_utc": 2,
+    "answer_length": 2142
   }
 }
