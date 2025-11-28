@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-11-28T04:33:19.212053+00:00",
+    "kols": "2025-11-28T06:42:08.554860+00:00",
     "dynamic": "2025-11-27T21:24:45.735185+00:00",
     "market_direction": "2025-11-28T02:04:18.894992+00:00",
     "narratives": "2025-11-27T23:25:58.405959+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Which country launched a gold stablecoin?",
   "dynamic_published_at": "2025-11-27T21:24:45.735173+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2025-11-28T05:29:34.579900+00:00",
-    "hour_utc": 5,
-    "answer_length": 2346
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-11-28T06:42:08.554881+00:00",
+    "hour_utc": 6,
+    "answer_length": 2984
   }
 }
