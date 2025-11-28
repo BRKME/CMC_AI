@@ -888,42 +888,12 @@ def send_to_twitter(title, text, hashtags, image_url):
 def send_question_answer_to_telegram(question, answer):
     """Отправляет вопрос и TLDR в Telegram с картинкой. Возвращает True если успешно."""
     try:
-        tldr_text = extract_tldr_from_answer(answer)
-        tldr_text = clean_question_specific_text(question, tldr_text)
-        
-        if not tldr_text:
-            logger.error("✗ Пустой TLDR после обработки")
-            return False
-        
-        # Получаем конфигурацию для отображения
-        display_config = QUESTION_DISPLAY_CONFIG.get(question, {
-            "title": "Crypto Update",
-            "hashtags": "#Crypto #Bitcoin"
-        })
-        
-        title = display_config["title"]
-        hashtags = display_config["hashtags"]
-        
-        # Форматируем сообщение БЕЗ вопроса, только заголовок + текст + хэштеги
-        short_message = f"""<b>{title}</b>
-
-{tldr_text}
-
-{hashtags}"""
-        
-        image_url = get_random_image_url()
-        
-        logger.info(f"\n📤 ОТПРАВКА В TELEGRAM")
-        logger.info(f"📋 Заголовок: {title}")
-        logger.info(f"📏 Длина TLDR: {len(tldr_text)} символов")
-        logger.info(f"🏷 Хэштеги: {hashtags}")
-        
-  # Отправляем через новый модуль форматирования v2.1
+        # Используем новый модуль форматирования v2.1
         logger.info(f"\n📤 ОТПРАВКА (форматирование v{formatting_version})")
         
         telegram_success = send_improved(
-            result['question'], 
-            result['answer'],
+            question,
+            answer,
             extract_tldr_from_answer,
             clean_question_specific_text,
             QUESTION_DISPLAY_CONFIG,
@@ -939,6 +909,7 @@ def send_question_answer_to_telegram(question, answer):
         
     except Exception as e:
         logger.error(f"✗ Ошибка при отправке: {e}")
+        import traceback
         traceback.print_exc()
         return False
 
