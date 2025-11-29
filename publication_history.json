@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-11-29T12:53:12.733277+00:00",
+    "kols": "2025-11-29T16:32:48.463896+00:00",
     "dynamic": "2025-11-29T15:26:09.969521+00:00",
     "market_direction": "2025-11-29T14:25:10.319003+00:00",
     "narratives": "2025-11-29T11:22:21.696253+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Which sectors led the market today?",
   "dynamic_published_at": "2025-11-29T15:26:09.969504+00:00",
   "last_publication": {
-    "question": "Which sectors led the market today?",
-    "group": "DYNAMIC",
-    "published_at": "2025-11-29T15:26:09.969525+00:00",
-    "hour_utc": 15,
-    "answer_length": 2224
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-11-29T16:32:48.463913+00:00",
+    "hour_utc": 16,
+    "answer_length": 2632
   }
 }
