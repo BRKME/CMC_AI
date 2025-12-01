@@ -6,7 +6,7 @@
     "narratives": "2025-12-01T11:26:27.123084+00:00",
     "events": "2025-12-01T07:30:57.086536+00:00",
     "sentiment": "2025-11-30T17:23:55.138881+00:00",
-    "altcoins": "2025-12-01T13:00:53.011717+00:00",
+    "altcoins": "2025-12-01T13:40:55.185778+00:00",
     "bullish": "2025-12-01T05:35:54.032046+00:00"
   },
   "last_dynamic_question": "Which sectors led the selloff?",
@@ -14,8 +14,8 @@
   "last_publication": {
     "question": "Are altcoins outperforming Bitcoin?",
     "group": "altcoins",
-    "published_at": "2025-12-01T13:00:53.011733+00:00",
+    "published_at": "2025-12-01T13:40:55.185794+00:00",
     "hour_utc": 13,
-    "answer_length": 1943
+    "answer_length": 1847
   }
 }
