@@ -6,7 +6,7 @@
     "narratives": "2025-12-02T11:27:49.789899+00:00",
     "events": "2025-12-02T07:30:04.999440+00:00",
     "sentiment": "2025-12-01T17:29:33.672206+00:00",
-    "altcoins": "2025-12-02T13:01:34.112855+00:00",
+    "altcoins": "2025-12-02T13:42:09.168366+00:00",
     "bullish": "2025-12-02T05:28:52.623721+00:00"
   },
   "last_dynamic_question": "Which agency proposed stablecoin rules?",
@@ -14,8 +14,8 @@
   "last_publication": {
     "question": "Are altcoins outperforming Bitcoin?",
     "group": "altcoins",
-    "published_at": "2025-12-02T13:01:34.112871+00:00",
+    "published_at": "2025-12-02T13:42:09.168381+00:00",
     "hour_utc": 13,
-    "answer_length": 2034
+    "answer_length": 2009
   }
 }
