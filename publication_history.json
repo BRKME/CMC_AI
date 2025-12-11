@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-12-10T20:34:31.978305+00:00",
+    "kols": "2025-12-11T04:00:58.366735+00:00",
     "dynamic": "2025-12-10T21:31:10.625734+00:00",
     "market_direction": "2025-12-11T02:14:09.564938+00:00",
     "narratives": "2025-12-10T23:25:59.526120+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Which banks enabled BTC trading today?",
   "dynamic_published_at": "2025-12-10T21:31:10.625719+00:00",
   "last_publication": {
-    "question": "Why is the market down today?",
-    "group": "market_direction",
-    "published_at": "2025-12-11T02:14:09.564958+00:00",
-    "hour_utc": 2,
-    "answer_length": 2560
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-12-11T04:00:58.366751+00:00",
+    "hour_utc": 4,
+    "answer_length": 2724
   }
 }
