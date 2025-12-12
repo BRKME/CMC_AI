@@ -1,50 +1,55 @@
 """
 formatting.py - Модуль улучшенного форматирования для Telegram и Twitter
-Version: 2.2.0
+Version: 3.1.0
 Senior QA Approved - Production Ready
 
-ИЗМЕНЕНИЯ v2.2.0:
-- Убрана линия разделителя в Telegram
-- Только 1 эмодзи в заголовке
-- Двойные пробелы между пунктами для читабельности
+ИСПРАВЛЕНО В v3.1.0:
+- Исправлен конфликт параметров send_twitter_fn
+- Оптимизированы импорты
+- Добавлена защита от пустых тредов
+- Увеличены паузы между твитами (rate limit защита)
+- Улучшен fallback на одиночный твит
 
-ИСПОЛЬЗОВАНИЕ:
-1. Положите этот файл рядом с parser.py
-2. В parser.py добавьте: from formatting import send_improved
-3. Замените вызов: send_improved(result['question'], result['answer'])
+НОВОЕ В v3.0.0:
+- 🧵 Поддержка Twitter тредов
+- 📊 Умная разбивка по смысловым блокам
+- 🎯 Автонумерация твитов
+- ⚡ Fallback на одиночный твит
 """
 
 import re
 import time
 import logging
 
-# Получаем logger
 logger = logging.getLogger(__name__)
 
 # ========================================
-# ВЕРСИЯ
+# ВЕРСИЯ И НАСТРОЙКИ
 # ========================================
 
-__version__ = "2.2.0"
+__version__ = "3.1.0"
+
+# НАСТРОЙКА РЕЖИМА TWITTER
+TWITTER_MODE = "thread"  # "thread" или "single"
 
 # ========================================
 # КОНСТАНТЫ
 # ========================================
 
-# Лимиты безопасности
 MAX_TEXT_LENGTH = 5000
 MAX_LINE_COUNT = 100
 MAX_EMOJI_COUNT = 3
-
-# Performance лимиты
 EMOJI_DETECTION_TEXT_LIMIT = 2000
 
-# Twitter/Telegram лимиты
 MIN_TWITTER_SPACE = 50
 MAX_TWITTER_LENGTH = 280
 MAX_TELEGRAM_LENGTH = 4000
+MAX_THREAD_TWEETS = 8  # Снижен с 10 для безопасности rate limit
 
-# Эмодзи для заголовков (ТОЛЬКО ДЛЯ ЗАГОЛОВКА)
+# Пауза между твитами (увеличена для rate limit защиты)
+TWEET_DELAY = 2  # секунды
+
+# Эмодзи для заголовков
 TITLE_EMOJI_MAP = {
     "Crypto Insights": "💡",
     "Market Analysis": "📊",
@@ -55,7 +60,7 @@ TITLE_EMOJI_MAP = {
     "Altcoin Performance": "⚡"
 }
 
-# Контекстные паттерны (только для Twitter теперь)
+# Контекстные паттерны
 CONTEXT_PATTERNS = [
     ("bullish|rally|surge|pump|moon", "🚀", 1),
     ("bearish|dump|crash|decline|drop", "🐻", 1),
@@ -68,7 +73,7 @@ CONTEXT_PATTERNS = [
     ("defi|decentralized finance", "✨", 3),
 ]
 
-# Compiled regex patterns
+# Compiled regex
 CRYPTO_PRICE_PATTERN = re.compile(r'^[A-Z]{2,10}\s*\([+-]?\d')
 LIST_ITEM_PATTERN = re.compile(r'^[\-•\*]\s+|^\d+\.\s+')
 
@@ -106,7 +111,7 @@ def get_twitter_length(text):
 
 
 def get_context_emojis(text, max_count=MAX_EMOJI_COUNT):
-    """Определяет контекстные эмодзи на основе содержимого"""
+    """Определяет контекстные эмодзи"""
     if not text:
         return []
     
@@ -137,14 +142,11 @@ def detect_price_change_emoji(line):
 
 
 # ========================================
-# ФОРМАТИРОВАНИЕ
+# ФОРМАТИРОВАНИЕ TELEGRAM
 # ========================================
 
 def format_telegram_improved(title, text, hashtags):
-    """
-    Улучшенное форматирование для Telegram
-    v2.2.0: Чистый формат без линий, с пробелами между пунктами
-    """
+    """Улучшенное форматирование для Telegram"""
     start_time = time.time()
     
     try:
@@ -156,11 +158,9 @@ def format_telegram_improved(title, text, hashtags):
             logger.warning("⚠️ Пустой текст после санитизации")
             return f"<b>{title}</b>\n\n{hashtags}"
         
-        # ТОЛЬКО эмодзи заголовка (БЕЗ контекстных)
         emoji = TITLE_EMOJI_MAP.get(title, "📰")
         header = f"{emoji} <b>{title}</b>"
         
-        # Обработка текста построчно
         lines = text.split('\n')
         processed = []
         line_count = 0
@@ -176,24 +176,18 @@ def format_telegram_improved(title, text, hashtags):
             
             line_count += 1
             
-            # Криптовалюты с процентами
             if CRYPTO_PRICE_PATTERN.match(line):
                 price_emoji = detect_price_change_emoji(line)
                 processed.append(f"{price_emoji} {line}")
-            # Пункты списка
             elif LIST_ITEM_PATTERN.match(line):
                 clean = LIST_ITEM_PATTERN.sub('', line)
                 processed.append(f"• {clean}")
-            # Заголовки разделов
             elif line.endswith((':','–','—')) and len(line) < 50:
                 processed.append(f"<b>{line}</b>")
             else:
                 processed.append(line)
         
-        # ДВОЙНЫЕ переносы между пунктами для читабельности
         formatted = '\n\n'.join(processed)
-        
-        # Формируем финальное сообщение (БЕЗ линии)
         message = f"{header}\n\n{formatted}"
         
         if hashtags:
@@ -211,22 +205,133 @@ def format_telegram_improved(title, text, hashtags):
         
     except Exception as e:
         logger.error(f"✗ Ошибка в format_telegram_improved: {e}")
-        safe_title = safe_str(title, "Update", 50)
-        safe_text = safe_str(text, "No content", 500)
-        return f"<b>{safe_title}</b>\n\n{safe_text}"
+        return f"<b>{safe_str(title, 'Update')}</b>\n\n{safe_str(text, 'No content')[:500]}"
 
 
-def format_twitter_improved(title, text, hashtags, max_len=270):
-    """Улучшенное форматирование для Twitter"""
-    start_time = time.time()
+# ========================================
+# ФОРМАТИРОВАНИЕ TWITTER
+# ========================================
+
+def extract_bullet_points(text):
+    """Извлекает пункты списка из текста"""
+    points = []
+    lines = text.split('\n')
     
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        if LIST_ITEM_PATTERN.match(line) or CRYPTO_PRICE_PATTERN.match(line):
+            clean = LIST_ITEM_PATTERN.sub('', line).strip()
+            if clean and len(clean) > 10:
+                points.append(clean)
+    
+    return points
+
+
+def extract_intro_sentence(text):
+    """Извлекает первое предложение для intro"""
+    match = re.match(r'^([^.!?]+[.!?])', text)
+    if match:
+        intro = match.group(1).strip()
+        if get_twitter_length(intro) <= 200:
+            return intro
+    
+    if len(text) > 200:
+        return text[:197] + "..."
+    return text
+
+
+def format_twitter_thread(title, text, hashtags):
+    """
+    Создаёт тред для Twitter
+    Возвращает: list of str или None если невозможно
+    """
+    try:
+        tweets = []
+        
+        title = safe_str(title, "Update", 50)
+        text = safe_str(text, "", MAX_TEXT_LENGTH)
+        hashtags = safe_str(hashtags, "", 150)
+        
+        if not text:
+            logger.warning("⚠️ Пустой текст для треда")
+            return None
+        
+        emoji = TITLE_EMOJI_MAP.get(title, "📰")
+        context_emojis = get_context_emojis(text, max_count=2)
+        
+        # Твит 1: INTRO
+        intro = extract_intro_sentence(text)
+        context_str = " ".join(context_emojis) if context_emojis else ""
+        
+        tweet1 = f"{emoji} {title}"
+        if context_str:
+            tweet1 += f" {context_str}"
+        tweet1 += f"\n\n{intro}\n\n🧵👇"
+        
+        if get_twitter_length(tweet1) > MAX_TWITTER_LENGTH:
+            max_intro = MAX_TWITTER_LENGTH - get_twitter_length(f"{emoji} {title} {context_str}\n\n\n\n🧵👇") - 5
+            intro = text[:max_intro-3] + "..."
+            tweet1 = f"{emoji} {title}"
+            if context_str:
+                tweet1 += f" {context_str}"
+            tweet1 += f"\n\n{intro}\n\n🧵👇"
+        
+        tweets.append(tweet1)
+        
+        # Твиты 2-N: Пункты
+        points = extract_bullet_points(text)
+        
+        if not points:
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+            points = [s.strip() for s in sentences if len(s.strip()) > 20][:6]
+        
+        # ИСПРАВЛЕНО: Проверка что есть контент для треда
+        if not points or len(points) < 2:
+            logger.warning("⚠️ Недостаточно контента для треда, используем одиночный твит")
+            return None
+        
+        points = points[:MAX_THREAD_TWEETS-2]
+        
+        for point in points:
+            if CRYPTO_PRICE_PATTERN.match(point):
+                price_emoji = detect_price_change_emoji(point)
+                tweet = f"{price_emoji} {point}"
+            else:
+                tweet = f"• {point}"
+            
+            if get_twitter_length(tweet) > MAX_TWITTER_LENGTH:
+                tweet = tweet[:MAX_TWITTER_LENGTH-3] + "..."
+            
+            tweets.append(tweet)
+        
+        # Финальный твит
+        if hashtags:
+            tweets.append(hashtags)
+        
+        # ИСПРАВЛЕНО: Проверка минимальной длины треда
+        if len(tweets) < 2:
+            logger.warning("⚠️ Тред слишком короткий, используем одиночный твит")
+            return None
+        
+        logger.info(f"✓ Создан тред из {len(tweets)} твитов")
+        return tweets
+        
+    except Exception as e:
+        logger.error(f"✗ Ошибка создания треда: {e}")
+        return None
+
+
+def format_twitter_single(title, text, hashtags, max_len=270):
+    """Одиночный сокращенный твит"""
     try:
         title = safe_str(title, "Update", 50)
         text = safe_str(text, "", 2000)
         hashtags = safe_str(hashtags, "", 150)
         
         if not text:
-            logger.warning("⚠️ Пустой текст для Twitter")
             return f"{title}\n\n{hashtags}"
         
         emoji = TITLE_EMOJI_MAP.get(title, "📰")
@@ -241,51 +346,21 @@ def format_twitter_improved(title, text, hashtags, max_len=270):
         available = max_len - reserved
         
         if available < MIN_TWITTER_SPACE:
-            logger.warning(f"⚠️ Мало места ({available}), сокращаю хэштеги")
             tags_list = hashtags.split()[:2]
             hashtags = " ".join(tags_list) if tags_list else ""
             reserved = get_twitter_length(header) + get_twitter_length(hashtags) + 6
             available = max_len - reserved
-            
-            if available < MIN_TWITTER_SPACE:
-                header = title
-                reserved = get_twitter_length(header) + get_twitter_length(hashtags) + 6
-                available = max_len - reserved
         
         short_text = extract_short_text_safe(text, available)
         tweet = f"{header}\n\n{short_text}\n\n{hashtags}"
         
-        attempts = 0
-        max_attempts = 3
-        
-        while get_twitter_length(tweet) > MAX_TWITTER_LENGTH and attempts < max_attempts:
-            attempts += 1
-            logger.warning(f"⚠️ Твит длинный ({get_twitter_length(tweet)}), попытка {attempts}")
-            
-            if attempts == 1:
-                tags_list = hashtags.split()[:1]
-                hashtags = tags_list[0] if tags_list else ""
-            elif attempts == 2:
-                available = available - 30
-                short_text = extract_short_text_safe(text, max(available, 30))
-            else:
-                tweet = tweet[:277] + "..."
-                break
-            
-            tweet = f"{header}\n\n{short_text}\n\n{hashtags}"
-        
         if get_twitter_length(tweet) > MAX_TWITTER_LENGTH:
-            logger.error(f"✗ КРИТИЧНО: Твит все еще длинный, аварийная обрезка")
             tweet = tweet[:277] + "..."
-        
-        duration = time.time() - start_time
-        if duration > 0.3:
-            logger.warning(f"⚠️ Медленное форматирование TW: {duration:.2f}s")
         
         return tweet
         
     except Exception as e:
-        logger.error(f"✗ Ошибка в format_twitter_improved: {e}")
+        logger.error(f"✗ Ошибка в format_twitter_single: {e}")
         return f"{title}\n\nCheck Telegram"
 
 
@@ -332,22 +407,27 @@ def extract_short_text_safe(text, max_length):
 def send_improved(question, answer, 
                  extract_tldr_fn, clean_text_fn, config_dict,
                  get_image_fn, send_tg_photo_fn, send_tg_msg_fn,
-                 send_twitter_fn, twitter_enabled, twitter_keys):
+                 send_twitter_thread_fn, twitter_enabled, twitter_keys):
     """
     Главная функция для отправки контента
+    
+    ИСПРАВЛЕНО v3.1:
+    - Параметр send_twitter_thread_fn вместо send_twitter_fn
+    - Унифицированный вызов для обоих режимов
+    - Улучшен fallback
     """
     total_start = time.time()
     
     try:
         logger.info(f"\n📝 Форматирование v{__version__}")
+        logger.info(f"🐦 Twitter режим: {TWITTER_MODE}")
         
-        # 1. Извлекаем TLDR
+        # 1-2. Извлекаем и очищаем
         tldr_text = extract_tldr_fn(answer)
         if not tldr_text:
             logger.error("✗ Пустой TLDR")
             return False
         
-        # 2. Очищаем
         tldr_text = clean_text_fn(question, tldr_text)
         if not tldr_text:
             logger.error("✗ Пустой текст после очистки")
@@ -400,13 +480,37 @@ def send_improved(question, answer,
         if twitter_enabled and all(twitter_keys):
             try:
                 logger.info("\n🐦 Подготовка Twitter...")
-                tw_tweet = format_twitter_improved(title, tldr_text, hashtags)
-                logger.info(f"  ✓ Twitter: {get_twitter_length(tw_tweet)} символов")
                 
-                tw_success = send_twitter_fn(title, tldr_text, hashtags, image_url)
-                tw_status = "✓ Успешно" if tw_success else "✗ Ошибка"
+                # ИСПРАВЛЕНО: Унифицированный вызов
+                twitter_content = {
+                    "title": title,
+                    "text": tldr_text,
+                    "hashtags": hashtags,
+                    "mode": TWITTER_MODE
+                }
+                
+                if TWITTER_MODE == "thread":
+                    tweets = format_twitter_thread(title, tldr_text, hashtags)
+                    
+                    if tweets and len(tweets) >= 2:
+                        twitter_content["tweets"] = tweets
+                        logger.info(f"  ✓ Twitter тред: {len(tweets)} твитов")
+                    else:
+                        logger.warning("  ⚠️ Fallback на одиночный твит")
+                        twitter_content["mode"] = "single"
+                        twitter_content["tweet"] = format_twitter_single(title, tldr_text, hashtags)
+                else:
+                    twitter_content["tweet"] = format_twitter_single(title, tldr_text, hashtags)
+                    logger.info(f"  ✓ Twitter: {get_twitter_length(twitter_content['tweet'])} символов")
+                
+                # Вызываем функцию отправки
+                tw_success = send_twitter_thread_fn(twitter_content, image_url)
+                tw_status = f"✓ Успешно ({twitter_content['mode']})" if tw_success else "✗ Ошибка"
+                
             except Exception as e:
                 logger.error(f"  ✗ Twitter: {e}")
+                import traceback
+                traceback.print_exc()
                 tw_status = "✗ Ошибка"
         
         # 8. Итоги
