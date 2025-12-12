@@ -886,8 +886,218 @@ def send_to_twitter(title, text, hashtags, image_url):
         logger.error(f"✗ Критическая ошибка отправки в Twitter: {e}")
         traceback.print_exc()
         return False
+def send_twitter_thread(twitter_content, image_url):
+    """
+    Отправляет Twitter контент (тред или одиночный твит)
+    
+    Args:
+        twitter_content: dict с ключами:
+            - mode: "thread" или "single"
+            - tweets: list (для thread)
+            - tweet: str (для single)
+        image_url: URL картинки
+    
+    Returns:
+        bool: True если успешно
+    """
+    try:
+        if not TWITTER_ENABLED:
+            logger.info("ℹ️  Twitter отключен")
+            return False
+        
+        twitter = init_twitter_client()
+        if not twitter:
+            logger.error("✗ Не удалось инициализировать Twitter клиент")
+            return False
+        
+        client = twitter["client"]
+        api = twitter["api"]
+        
+        # Загружаем картинку
+        media_id = None
+        if image_url:
+            try:
+                logger.info(f"🖼️  Загрузка картинки...")
+                response = requests.get(image_url, timeout=30)
+                if response.status_code == 200:
+                    media = api.media_upload(filename="image.jpg", file=BytesIO(response.content))
+                    media_id = media.media_id
+                    logger.info(f"✓ Картинка загружена")
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка загрузки картинки: {e}")
+        
+        mode = twitter_content.get("mode", "single")
+        
+        # РЕЖИМ: ТРЕД
+        if mode == "thread" and "tweets" in twitter_content:
+            tweets = twitter_content["tweets"]
+            
+            if not tweets or len(tweets) < 2:
+                logger.warning("⚠️ Тред слишком короткий, переключаюсь на single")
+                mode = "single"
+            else:
+                logger.info(f"🧵 Публикация треда из {len(tweets)} твитов...")
+                
+                previous_tweet_id = None
+                published_count = 0
+                
+                for i, tweet_text in enumerate(tweets, 1):
+                    try:
+                        logger.info(f"  📤 Твит {i}/{len(tweets)}: {len(tweet_text)} символов")
+                        
+                        if i == 1 and media_id:
+                            response = client.create_tweet(text=tweet_text, media_ids=[media_id])
+                        elif previous_tweet_id:
+                            response = client.create_tweet(text=tweet_text, in_reply_to_tweet_id=previous_tweet_id)
+                        else:
+                            response = client.create_tweet(text=tweet_text)
+                        
+                        if response and hasattr(response, 'data'):
+                            try:
+                                if hasattr(response.data, 'get'):
+                                    tweet_id = response.data.get('id')
+                                elif hasattr(response.data, 'id'):
+                                    tweet_id = response.data.id
+                                else:
+                                    tweet_id = response.data['id']
+                                
+                                if tweet_id:
+                                    previous_tweet_id = tweet_id
+                                    published_count += 1
+                                    logger.info(f"    ✓ Твит {i} опубликован")
+                                    
+                                    if i < len(tweets):
+                                        time.sleep(2)
+                                else:
+                                    logger.error(f"    ✗ Нет ID для твита {i}")
+                                    break
+                            except Exception as e:
+                                logger.error(f"    ✗ Ошибка получения ID твита {i}: {e}")
+                                break
+                        else:
+                            logger.error(f"    ✗ Пустой ответ для твита {i}")
+                            break
+                    
+                    except tweepy.TweepyException as e:
+                        error_str = str(e)
+                        
+                        if "rate limit" in error_str.lower() or "429" in error_str:
+                            logger.warning(f"⚠️ Rate limit на твите {i}")
+                            return published_count >= 1
+                        
+                        if "duplicate" in error_str.lower() or "187" in error_str:
+                            logger.warning(f"⚠️ Твит {i} дубликат, пропускаем")
+                            continue
+                        
+                        logger.error(f"✗ Ошибка публикации твита {i}: {e}")
+                        return published_count >= 1
+                
+                if published_count >= 2:
+                    logger.info(f"✓ Тред опубликован ({published_count} твитов)")
+                    return True
+                elif published_count == 1:
+                    logger.warning("⚠️ Опубликован только 1 твит (не тред)")
+                    return True
+                else:
+                    logger.error("✗ Не удалось опубликовать тред")
+                    return False
+        
+        # РЕЖИМ: ОДИНОЧНЫЙ ТВИТ
+        if mode == "single":
+            tweet_text = twitter_content.get("tweet")
+            
+            if not tweet_text:
+                logger.error("✗ Нет текста твита")
+                return False
+            
+            logger.info(f"📏 Одиночный твит: {len(tweet_text)} символов")
+            
+            try:
+                if media_id:
+                    response = client.create_tweet(text=tweet_text, media_ids=[media_id])
+                else:
+                    response = client.create_tweet(text=tweet_text)
+                
+                if not response or not hasattr(response, 'data'):
+                    logger.error("✗ Пустой ответ от Twitter API")
+                    return False
+                
+                tweet_id = None
+                try:
+                    if hasattr(response.data, 'get'):
+                        tweet_id = response.data.get('id')
+                    elif hasattr(response.data, 'id'):
+                        tweet_id = response.data.id
+                    else:
+                        tweet_id = response.data['id']
+                except Exception as e:
+                    logger.error(f"✗ Ошибка получения ID: {e}")
+                    return False
+                
+                if tweet_id:
+                    logger.info(f"✓ Твит опубликован (ID: {tweet_id})")
+                    return True
+                else:
+                    logger.error("✗ Нет ID твита")
+                    return False
+                
+            except tweepy.TweepyException as e:
+                error_str = str(e)
+                
+                if "rate limit" in error_str.lower() or "429" in error_str:
+                    logger.warning("⚠️ Rate limit")
+                    return True
+                
+                if "duplicate" in error_str.lower() or "187" in error_str:
+                    logger.warning("⚠️ Дубликат твита")
+                    return True
+                
+                logger.error(f"✗ Ошибка: {e}")
+                
+                if media_id:
+                    logger.info("🔄 Попытка без картинки...")
+                    try:
+                        response = client.create_tweet(text=tweet_text)
+                        if response and hasattr(response, 'data'):
+                            logger.info("✓ Опубликовано без картинки")
+                            return True
+                    except:
+                        pass
+                
+                return False
+    
+    except Exception as e:
+        logger.error(f"✗ Критическая ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+        return False        
 
 def send_question_answer_to_telegram(question, answer):
+    """Отправляет вопрос и TLDR в Telegram с картинкой. Возвращает True если успешно."""
+    try:
+        logger.info(f"\n📤 ОТПРАВКА (форматирование v{formatting_version})")
+        
+        telegram_success = send_improved(
+            question,
+            answer,
+            extract_tldr_from_answer,
+            clean_question_specific_text,
+            QUESTION_DISPLAY_CONFIG,
+            get_random_image_url,
+            send_telegram_photo_with_caption,
+            send_telegram_message,
+            send_twitter_thread,
+            TWITTER_ENABLED,
+            (TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET)
+        )
+        
+        return telegram_success
+        
+    except Exception as e:
+        logger.error(f"✗ Ошибка при отправке: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
     """Отправляет вопрос и TLDR в Telegram с картинкой. Возвращает True если успешно."""
     try:
         # Используем новый модуль форматирования v2.1
