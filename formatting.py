@@ -1,13 +1,18 @@
 """
 formatting.py - Модуль улучшенного форматирования для Telegram и Twitter
-Version: 3.1.0
+Version: 3.1.1
 Senior QA Approved - Production Ready
+
+ОБНОВЛЕНО В v3.1.1:
+- Оптимизация для Twitter Free tier
+- Мини-треды: максимум 3 твита
+- Увеличена пауза между твитами: 15 секунд
+- Адаптация под rate limits
 
 ИСПРАВЛЕНО В v3.1.0:
 - Исправлен конфликт параметров send_twitter_fn
 - Оптимизированы импорты
 - Добавлена защита от пустых тредов
-- Увеличены паузы между твитами (rate limit защита)
 - Улучшен fallback на одиночный твит
 
 НОВОЕ В v3.0.0:
@@ -27,7 +32,7 @@ logger = logging.getLogger(__name__)
 # ВЕРСИЯ И НАСТРОЙКИ
 # ========================================
 
-__version__ = "3.1.0"
+__version__ = "3.1.1"
 
 # НАСТРОЙКА РЕЖИМА TWITTER
 TWITTER_MODE = "thread"  # "thread" или "single"
@@ -44,10 +49,10 @@ EMOJI_DETECTION_TEXT_LIMIT = 2000
 MIN_TWITTER_SPACE = 50
 MAX_TWITTER_LENGTH = 280
 MAX_TELEGRAM_LENGTH = 4000
-MAX_THREAD_TWEETS = 8  # Снижен с 10 для безопасности rate limit
+MAX_THREAD_TWEETS = 3  # Оптимизировано для Free tier (было 8)
 
-# Пауза между твитами (увеличена для rate limit защиты)
-TWEET_DELAY = 2  # секунды
+# Пауза между твитами (увеличена для Free tier rate limits)
+TWEET_DELAY = 15  # секунды (было 2)
 
 # Эмодзи для заголовков
 TITLE_EMOJI_MAP = {
@@ -245,8 +250,8 @@ def extract_intro_sentence(text):
 
 def format_twitter_thread(title, text, hashtags):
     """
-    Создаёт тред для Twitter
-    Возвращает: list of str или None если невозможно
+    Создаёт мини-тред для Twitter (оптимизировано для Free tier)
+    Возвращает: list of str или None
     """
     try:
         tweets = []
@@ -281,39 +286,37 @@ def format_twitter_thread(title, text, hashtags):
         
         tweets.append(tweet1)
         
-        # Твиты 2-N: Пункты
+        # Твит 2: ГЛАВНЫЙ ПУНКТ (для мини-треда берём только самый важный)
         points = extract_bullet_points(text)
         
         if not points:
             sentences = re.split(r'(?<=[.!?])\s+', text)
-            points = [s.strip() for s in sentences if len(s.strip()) > 20][:6]
+            points = [s.strip() for s in sentences if len(s.strip()) > 20][:2]
         
-        # ИСПРАВЛЕНО: Проверка что есть контент для треда
-        if not points or len(points) < 2:
+        if not points or len(points) < 1:
             logger.warning("⚠️ Недостаточно контента для треда, используем одиночный твит")
             return None
         
-        points = points[:MAX_THREAD_TWEETS-2]
+        # Берём только ПЕРВЫЙ пункт (самый важный)
+        main_point = points[0]
         
-        for point in points:
-            if CRYPTO_PRICE_PATTERN.match(point):
-                price_emoji = detect_price_change_emoji(point)
-                tweet = f"{price_emoji} {point}"
-            else:
-                tweet = f"• {point}"
-            
-            if get_twitter_length(tweet) > MAX_TWITTER_LENGTH:
-                tweet = tweet[:MAX_TWITTER_LENGTH-3] + "..."
-            
-            tweets.append(tweet)
+        if CRYPTO_PRICE_PATTERN.match(main_point):
+            price_emoji = detect_price_change_emoji(main_point)
+            tweet2 = f"{price_emoji} {main_point}"
+        else:
+            tweet2 = f"• {main_point}"
         
-        # Финальный твит
+        if get_twitter_length(tweet2) > MAX_TWITTER_LENGTH:
+            tweet2 = tweet2[:MAX_TWITTER_LENGTH-3] + "..."
+        
+        tweets.append(tweet2)
+        
+        # Твит 3: ХЭШТЕГИ
         if hashtags:
             tweets.append(hashtags)
         
-        # ИСПРАВЛЕНО: Проверка минимальной длины треда
         if len(tweets) < 2:
-            logger.warning("⚠️ Тред слишком короткий, используем одиночный твит")
+            logger.warning("⚠️ Тред слишком короткий")
             return None
         
         logger.info(f"✓ Создан тред из {len(tweets)} твитов")
@@ -411,10 +414,7 @@ def send_improved(question, answer,
     """
     Главная функция для отправки контента
     
-    ИСПРАВЛЕНО v3.1:
-    - Параметр send_twitter_thread_fn вместо send_twitter_fn
-    - Унифицированный вызов для обоих режимов
-    - Улучшен fallback
+    v3.1.1: Оптимизация для Twitter Free tier
     """
     total_start = time.time()
     
@@ -481,7 +481,6 @@ def send_improved(question, answer,
             try:
                 logger.info("\n🐦 Подготовка Twitter...")
                 
-                # ИСПРАВЛЕНО: Унифицированный вызов
                 twitter_content = {
                     "title": title,
                     "text": tldr_text,
@@ -503,7 +502,6 @@ def send_improved(question, answer,
                     twitter_content["tweet"] = format_twitter_single(title, tldr_text, hashtags)
                     logger.info(f"  ✓ Twitter: {get_twitter_length(twitter_content['tweet'])} символов")
                 
-                # Вызываем функцию отправки
                 tw_success = send_twitter_thread_fn(twitter_content, image_url)
                 tw_status = f"✓ Успешно ({twitter_content['mode']})" if tw_success else "✗ Ошибка"
                 
