@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-12-14T04:43:05.350828+00:00",
+    "kols": "2025-12-14T06:41:10.400633+00:00",
     "dynamic": "2025-12-12T15:31:55.476962+00:00",
     "market_direction": "2025-12-13T02:06:15.522303+00:00",
     "narratives": "2025-12-13T23:26:09.566286+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "When is Senate crypto markup?",
   "dynamic_published_at": "2025-12-12T15:31:55.476948+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2025-12-14T05:29:18.868773+00:00",
-    "hour_utc": 5,
-    "answer_length": 2528
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-12-14T06:41:10.400648+00:00",
+    "hour_utc": 6,
+    "answer_length": 2870
   }
 }
