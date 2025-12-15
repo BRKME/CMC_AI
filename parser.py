@@ -1413,8 +1413,15 @@ async def main_parser():
             current_hour = datetime.now(timezone.utc).hour
             scheduled_group = SCHEDULE.get(current_hour)
             
-            if not scheduled_group:
-                raise Exception(f"Нет расписания для часа {current_hour}")
+            # Проверяем есть ли расписание для этого часа
+            if scheduled_group is None:
+                logger.info(f"\n⏸️  Час {current_hour} UTC - нет расписания публикации")
+                logger.info(f"   Следующая публикация в ближайшем запланированном слоте")
+                logger.info(f"   Завершаем успешно без публикации")
+                logger.info("="*70)
+                await browser.close()
+                logger.info("✓ Браузер закрыт\n")
+                return True
             
             logger.info(f"\n⏰ Текущий час UTC: {current_hour}")
             logger.info(f"📅 По расписанию должна быть группа: {scheduled_group}")
