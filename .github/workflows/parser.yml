@@ -31,6 +31,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install playwright beautifulsoup4 requests tweepy
+        pip install openai==1.54.3 httpx==0.27.0
     
     - name: Install Playwright browsers
       run: |
@@ -40,7 +41,7 @@ jobs:
     - name: Check required files
       run: |
         echo "🔍 Checking required files..."
-        ls -la parser.py formatting.py
+        ls -la parser.py formatting.py openai_cmc_integration.py
         echo "✅ All files present"
     
     - name: Run parser
@@ -54,6 +55,8 @@ jobs:
         TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         TWITTER_ENABLED: ${{ vars.TWITTER_ENABLED || 'true' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ALPHA_TAKE_ENABLED: ${{ secrets.ALPHA_TAKE_ENABLED || 'true' }}
       run: |
         python parser.py
     
