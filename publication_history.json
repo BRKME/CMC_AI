@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-12-15T08:42:50.928654+00:00",
+    "kols": "2025-12-15T13:04:14.551229+00:00",
     "dynamic": "2025-12-15T09:41:18.513109+00:00",
     "market_direction": "2025-12-13T02:06:15.522303+00:00",
     "narratives": "2025-12-13T23:26:09.566286+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Which platform pays creators in stablecoins?",
   "dynamic_published_at": "2025-12-15T09:41:18.513095+00:00",
   "last_publication": {
-    "question": "Which platform pays creators in stablecoins?",
-    "group": "DYNAMIC",
-    "published_at": "2025-12-15T09:41:18.513114+00:00",
-    "hour_utc": 9,
-    "answer_length": 2389
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-12-15T13:04:14.551245+00:00",
+    "hour_utc": 13,
+    "answer_length": 2707
   }
 }
