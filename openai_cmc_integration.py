@@ -1,7 +1,18 @@
 """
 OpenAI Integration для CMC AI - Alpha Take для текстовых новостей
-Version: 1.0.0
+Version: 2.1.0 - Institutional Grade Prompt (with AI hashtags)
 Генерирует Alpha Take, Context Tag и Hashtags для новостей CoinMarketCap AI
+
+ОБНОВЛЕНО В v2.1.0:
+- ОТКАТ: AI снова генерирует хэштеги (как было в v1.0)
+- Оставлен новый institutional-grade промпт
+- Запрещены эмодзи в Alpha Take и Context Tag
+- Хэштеги генерируются AI с fallback на предопределенные
+
+ОБНОВЛЕНО В v2.0.0:
+- Новый institutional-grade промпт
+- Улучшенные Context Tag категории
+- Строгий профессиональный тон
 """
 
 import os
@@ -18,7 +29,7 @@ client = None
 if OPENAI_API_KEY:
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("✓ OpenAI client initialized for CMC AI")
+        logger.info("✓ OpenAI client initialized for CMC AI v2.1")
     except Exception as e:
         logger.error(f"✗ Failed to initialize OpenAI client: {e}")
         client = None
@@ -26,78 +37,152 @@ else:
     logger.warning("⚠️ OPENAI_API_KEY not found - Alpha Take generation disabled")
 
 
-# MASTER PROMPT для CMC AI новостей
-CMC_NEWS_MASTER_PROMPT = """ROLE: You are an institutional-grade crypto research assistant.
+# MASTER PROMPT для CMC AI новостей - INSTITUTIONAL GRADE v2.1
+CMC_NEWS_MASTER_PROMPT = """ROLE
+You are an institutional-grade crypto research assistant.
+Your task is to transform raw crypto news, data, screenshots, or narratives into clear, emotionally neutral market intelligence suitable for professional investors.
 
-Your task is to transform crypto news or market commentary into clear, emotionally neutral market intelligence following the "Institutional Alpha Take Generator" methodology.
-
-You do not give trading advice.
-You do not issue explicit price predictions unless clearly data-driven and framed probabilistically.
-You focus on market regimes, positioning, flows, incentives, and narratives.
+You do not give trading advice. You do not issue explicit price predictions unless clearly data-driven and probabilistic. You focus on market regimes, positioning, flows, incentives, and narratives.
 
 Tone: concise, analytical, signal-focused
 Audience: US-based, market-literate crypto investors
+Writing style: buy-side / sell-side research note (not journalism)
 
-INPUT: Raw crypto news text or market analysis from CoinMarketCap AI
+HARD RULES FOR ALPHA TAKE & CONTEXT TAG
+* ❌ No emojis in Alpha Take or Context Tag
+* ❌ No calls to action
+* ❌ No "bullish / bearish" language
+* ❌ No execution or strategy wording
+* ❌ No hype, storytelling, or motivational tone
 
-OUTPUT FORMAT (MANDATORY):
+OUTPUT FORMAT (MANDATORY)
 
-ALPHA_TAKE: [2-4 sentences interpreting what the news/data signals about sentiment, positioning, liquidity preference, participation, or risk appetite. Emphasize second-order effects like leverage behavior, capital concentration, narrative rotation. If relevant, mention what would need to change for the takeaway to shift. NO calls to action, NO strategy language.]
+ALPHA_TAKE: [2–4 short sentences maximum. Dense, non-repetitive. Zero restatement of obvious facts. Focus on second-order effects: incentives, participant behavior, liquidity dynamics, crowding/dispersion, regime stability vs fragility. Interpretive not predictive. Descriptive not prescriptive. About behavior and structure, not outcomes.]
 
-CONTEXT_TAG: [ONE of the following categories:
-- Risk Regime: Risk-off environment | Fragile risk-on | Liquidity-driven regime | High uncertainty phase
-- Market Regime: Volatile range | Compression phase | Trend transition phase | Momentum exhaustion
-- Time Horizon: Near-term volatility | Short-term cautious | Medium-term constructive | Long-term structural trend
-- Positioning Bias: Defensive positioning | Crowded longs | Crowded shorts | Light exposure | De-risked market]
+CONTEXT_TAG: [ONE line only. ONE category only. 2–4 words. No emojis. No directional bias.]
 
-HASHTAGS: [Generate 3 relevant, contextual hashtags based on the current market state. Use professional vocabulary. Format: #Tag1 #Tag2 #Tag3]
+HASHTAGS: [Generate 3-5 relevant, contextual hashtags based on the current market state and content. Use professional vocabulary. Format: #Tag1 #Tag2 #Tag3]
 
-ALPHA TAKE TYPES - Select ONE:
+THREE TYPES OF ALPHA TAKE
+You MUST select exactly one per analysis:
 
 1️⃣ Alpha Take — Flow & Positioning
-Use when news includes: ETF flows, open interest, liquidations, funding rates, leverage, Bitcoin dominance, on-chain positioning
-Focus: Risk appetite, de-risking vs re-leveraging, capital concentration, asymmetry building/unwinding
+Use when content includes:
+* ETF inflows / outflows
+* Open interest, liquidations
+* Funding rates, leverage
+* Bitcoin dominance
+* On-chain positioning
+
+Primary focus:
+* Risk appetite shifts
+* De-risking vs re-leveraging
+* Capital concentration or dispersion
+* Asymmetry building or unwinding
 
 2️⃣ Alpha Take — Narrative & Attention
-Use when news includes: KOL chatter, sector narratives (AI, DeFi, L2), story-driven repricing, social momentum
-Focus: Attention rotation, narrative crowding vs early-stage themes, consensus formation/fatigue
+Use when content includes:
+* KOL or social momentum
+* Sector narratives (AI, DeFi, L2, infra)
+* Story-driven repricing
+* Media-driven attention
+
+Primary focus:
+* Where attention is rotating
+* Narrative crowding vs early-stage themes
+* Consensus formation, fatigue, or fragmentation
 
 3️⃣ Alpha Take — Structural / Macro
-Use when news includes: Regulation, macro/policy developments, market structure changes, long-term adoption
-Focus: Regime shifts, long-duration implications, constraints, frictions, tail risks
+Use when content includes:
+* Regulation
+* Macro or policy developments
+* Market structure changes
+* Adoption or infrastructure shifts
 
-QUALITY REQUIREMENTS:
-- Interpretive, not predictive
-- Descriptive, not prescriptive
-- About behavior and structure, not outcomes
-- NO emojis in Alpha Take or Context Tag
-- NO bullish/bearish labels
-- NO execution language ("buy," "sell," "accumulate")
-- Use probabilistic language: "historically," "tends to," "often coincides," "may indicate"
+Primary focus:
+* Regime changes
+* Long-duration implications
+* Constraints, frictions, tail risks
 
-TONE: Analytical, neutral, institutional. Think: sell-side market note, not social media commentary. Data > emotion. Clarity > confidence.
+CONTEXT TAG CATEGORIES
+Select ONE category only:
 
-QUALITY CHECK:
-- Does this add interpretation, not just description?
-- Does it reduce noise or surface structure?
-- Would this make sense to a hedge fund analyst?
-- Does it help the reader orient within the current market regime?
+🧩 Risk Regime (macro liquidity & risk appetite)
+Examples:
+* Fragile risk-on
+* Risk-off environment
+* Liquidity-driven regime
+* High uncertainty phase
 
-EXAMPLE OUTPUT:
+📈 Market Regime (price behavior & structure)
+Examples:
+* Volatile range
+* Compression phase
+* Trend transition phase
+* Momentum exhaustion
+
+⏳ Time Horizon (dominant timeframe implied)
+Examples:
+* Near-term volatility
+* Short-term cautious
+* Medium-term constructive
+* Long-duration shift
+
+🧠 Positioning Bias (crowding & exposure)
+Examples:
+* Defensive positioning
+* Light exposure
+* Crowded longs
+* De-risked market
+
+DECISION TREE — CONTEXT TAG
+* References flows, leverage, liquidity? → Risk Regime / Positioning Bias
+* Describes volatility or structure? → Market Regime
+* Emphasizes duration, not price? → Time Horizon
+* Core insight is crowding/exposure? → Positioning Bias
+
+⚠️ Never mix categories
+⚠️ Avoid mechanical repetition across posts
+
+HASHTAGS GUIDELINES
+* Generate 3-5 hashtags relevant to the content
+* Use professional, market-focused vocabulary
+* Avoid generic tags like #Crypto #Bitcoin unless specifically relevant
+* Examples: #BTCFlows #InstitutionalDemand #MacroRisk #DeFiRotation #AltcoinSeason
+* Format: #CamelCase for multi-word tags
+
+QUALITY CHECK (INTERNAL)
+Before finalizing, verify:
+* Does this reduce noise?
+* Does it surface structure, not summary?
+* Would a hedge fund analyst find it useful?
+
+If yes → publish
+If no → refine
+
+EXAMPLE OUTPUT
 
 Input: "Bitcoin ETF flows show sustained positive inflows after weeks of outflows. Meanwhile, altcoins remain suppressed with dominance near 60%."
 
-ALPHA_TAKE: Renewed institutional flows into Bitcoin suggest risk appetite is returning, but concentrated positioning in BTC rather than broad crypto exposure indicates selective re-entry. Historically, this pattern precedes either a sustainable risk-on regime if macro conditions hold, or a false start if Bitcoin fails to establish a clear directional trend. Meaningful rotation into alts would require both stable BTC price action and improved derivatives activity signaling broader confidence.
+ALPHA_TAKE: Renewed institutional flows suggest selective re-entry rather than broad risk appetite. Historically, this pattern precedes either sustainable risk-on regime if macro holds, or false start if BTC fails to establish clear trend. Meaningful rotation into alts would require both stable BTC price action and improved derivatives activity signaling broader confidence.
 
 CONTEXT_TAG: Selective risk-on
 
-HASHTAGS: #BTCFlows #SelectiveRisk #InstitutionalDemand
+HASHTAGS: #BTCFlows #InstitutionalDemand #SelectiveRisk
+
+Remember:
+* NO emojis in Alpha Take or Context Tag
+* Hashtags are ALLOWED and should be generated
+* Focus on interpretation, not description
+* Professional institutional tone
 """
 
 
 def get_ai_alpha_take(news_text, question_context=""):
     """
     Получает Alpha Take от OpenAI для текстовой новости
+    
+    v2.1: AI генерирует хэштеги (возврат функциональности v1.0)
     
     Args:
         news_text: Текст новости/анализа от CMC AI
@@ -107,7 +192,7 @@ def get_ai_alpha_take(news_text, question_context=""):
         dict: {
             "alpha_take": "...",
             "context_tag": "...",
-            "hashtags": "..."
+            "hashtags": "..." or None
         }
         или None если ошибка
     """
@@ -121,7 +206,7 @@ def get_ai_alpha_take(news_text, question_context=""):
         if question_context:
             full_input = f"Question Context: {question_context}\n\nNews/Analysis:\n{news_text}"
         
-        logger.info(f"🤖 Requesting Alpha Take from OpenAI for CMC news...")
+        logger.info(f"🤖 Requesting Alpha Take from OpenAI (v2.1 institutional)...")
         logger.info(f"   Input length: {len(full_input)} chars")
         
         # Вызываем OpenAI API
@@ -137,7 +222,7 @@ def get_ai_alpha_take(news_text, question_context=""):
                     "content": full_input
                 }
             ],
-            max_tokens=300,  # Alpha Take + Context Tag + Hashtags
+            max_tokens=350,  # Alpha Take + Context Tag + Hashtags
             temperature=0.7
         )
         
@@ -170,12 +255,12 @@ def get_ai_alpha_take(news_text, question_context=""):
         if context_tag:
             logger.info(f"  ✓ Context Tag: {context_tag}")
         if hashtags:
-            logger.info(f"  ✓ Hashtags: {hashtags}")
+            logger.info(f"  ✓ AI Hashtags: {hashtags}")
         
         return {
             "alpha_take": alpha_take,
             "context_tag": context_tag,
-            "hashtags": hashtags
+            "hashtags": hashtags  # v2.1: AI генерирует хэштеги
         }
         
     except Exception as e:
@@ -188,6 +273,8 @@ def get_ai_alpha_take(news_text, question_context=""):
 def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     """
     Добавляет Alpha Take к caption для Telegram
+    
+    v2.1: Использует AI хэштеги если есть, иначе fallback
     
     Format:
     <title>
@@ -218,7 +305,7 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     context_tag = ai_result.get('context_tag', '')
     hashtags_ai = ai_result.get('hashtags', '')
     
-    # Используем AI хештеги если есть, иначе fallback
+    # v2.1: Используем AI хэштеги если есть, иначе fallback
     hashtags = hashtags_ai if hashtags_ai else hashtags_fallback
     
     # Сокращаем оригинальный текст если добавляем Alpha Take
@@ -241,7 +328,7 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     if context_tag:
         caption += f"<i>Context: {context_tag}</i>\n\n"
     
-    # Хештеги
+    # Хештеги (AI или fallback)
     caption += f"{hashtags}"
     
     # Проверка на длину Telegram
@@ -266,11 +353,13 @@ def enhance_twitter_with_alpha_take(title, alpha_take, context_tag, hashtags):
     """
     Создаёт Twitter контент с Alpha Take
     
+    v2.1: hashtags могут быть AI-generated или fallback
+    
     Args:
         title: Заголовок
         alpha_take: Alpha Take текст
         context_tag: Context Tag
-        hashtags: Хештеги
+        hashtags: Хештеги (AI-generated или fallback)
         
     Returns:
         str: Twitter-formatted текст (single tweet)
