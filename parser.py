@@ -951,52 +951,24 @@ def send_twitter_thread(twitter_content, image_url):
 
 def send_question_answer_to_telegram(question, answer):
     """
-    Отправляет вопрос и TLDR в Telegram с картинкой и Alpha Take (V2).
+    Отправляет вопрос и TLDR в Telegram с картинкой и Alpha Take (V3).
+    Использует send_improved() из formatting.py для полных Twitter тредов.
     Возвращает True если успешно.
+    
+    NEW в V3.0 (formatting v3.2.0):
+    - Использует send_improved() для публикации
+    - Полные Twitter треды с Alpha Take
+    - Все форматирование делегировано в formatting.py
     
     NEW в V2.0:
     - Генерация Alpha Take через OpenAI
     - Enhanced caption с Alpha Take + Context Tag
-    - Улучшенное форматирование для Twitter
     """
     try:
         logger.info(f"\n📤 ОТПРАВКА (форматирование v{formatting_version})")
         
         # ==========================================
-        # 1. ИЗВЛЕЧЕНИЕ И ОЧИСТКА КОНТЕНТА
-        # ==========================================
-        
-        # Извлекаем TLDR
-        tldr_text = extract_tldr_from_answer(answer)
-        if not tldr_text:
-            logger.error("✗ Пустой TLDR")
-            return False
-        
-        # Очищаем текст
-        tldr_text = clean_question_specific_text(question, tldr_text)
-        if not tldr_text:
-            logger.error("✗ Пустой текст после очистки")
-            return False
-        
-        logger.info(f"  ✓ TLDR извлечен: {len(tldr_text)} символов")
-        
-        # ==========================================
-        # 2. ПОЛУЧЕНИЕ КОНФИГУРАЦИИ
-        # ==========================================
-        
-        config = QUESTION_DISPLAY_CONFIG.get(question, {
-            "title": "Crypto Update",
-            "hashtags": "#Crypto #Bitcoin"
-        })
-        
-        title = config.get("title", "Crypto Update")
-        hashtags = config.get("hashtags", "#Crypto")
-        
-        logger.info(f"  ✓ Заголовок: {title}")
-        logger.info(f"  ✓ Хештеги: {hashtags}")
-        
-        # ==========================================
-        # 3. ГЕНЕРАЦИЯ ALPHA TAKE (NEW В V2)
+        # 1. ГЕНЕРАЦИЯ ALPHA TAKE (если включен)
         # ==========================================
         
         ai_result = None
@@ -1006,8 +978,12 @@ def send_question_answer_to_telegram(question, answer):
             logger.info(f"   Используем OpenAI для анализа...")
             
             try:
+                # Извлекаем TLDR для Alpha Take генерации
+                tldr_for_ai = extract_tldr_from_answer(answer)
+                tldr_for_ai = clean_question_specific_text(question, tldr_for_ai)
+                
                 ai_result = get_ai_alpha_take(
-                    news_text=tldr_text,
+                    news_text=tldr_for_ai,
                     question_context=question
                 )
                 
@@ -1018,7 +994,7 @@ def send_question_answer_to_telegram(question, answer):
                     logger.info(f"   • Hashtags: {ai_result.get('hashtags', 'N/A')}")
                 else:
                     logger.warning("⚠️ Alpha Take не получен")
-                    logger.warning("   Используем обычный формат публикации")
+                    logger.warning("   Fallback на обычный формат")
                     
             except Exception as e:
                 logger.error(f"✗ Ошибка генерации Alpha Take: {e}")
@@ -1032,142 +1008,65 @@ def send_question_answer_to_telegram(question, answer):
             logger.info("   Используем обычный формат публикации")
         
         # ==========================================
-        # 4. ФОРМАТИРОВАНИЕ TELEGRAM CAPTION
+        # 2. ОТПРАВКА ЧЕРЕЗ send_improved()
         # ==========================================
         
-        logger.info("\n📝 ФОРМАТИРОВАНИЕ КОНТЕНТА")
+        # Извлекаем Alpha Take и Context Tag для передачи в formatting.py
+        alpha_take = None
+        context_tag = None
         
         if ai_result:
-            # С Alpha Take - enhanced формат
-            logger.info("   Режим: Enhanced (с Alpha Take)")
-            telegram_caption = enhance_caption_with_alpha_take(
-                title=title,
-                text=tldr_text,
-                hashtags_fallback=hashtags,
-                ai_result=ai_result
-            )
-        else:
-            # Без Alpha Take - старый формат
-            logger.info("   Режим: Standard (без Alpha Take)")
-            telegram_caption = f"<b>{title}</b>\n\n{tldr_text}\n\n{hashtags}"
+            alpha_take = ai_result.get('alpha_take')
+            context_tag = ai_result.get('context_tag')
         
-        logger.info(f"  ✓ Telegram caption: {len(telegram_caption)} символов")
+        # Вызываем send_improved() из formatting.py v3.2.0
+        # Он сам займется всем: Telegram, Twitter треды, Alpha Take
+        success = send_improved(
+            question=question,
+            answer=answer,
+            extract_tldr_fn=extract_tldr_from_answer,
+            clean_text_fn=clean_question_specific_text,
+            config_dict=QUESTION_DISPLAY_CONFIG,
+            get_image_fn=get_random_image_url,
+            send_tg_photo_fn=send_telegram_photo_with_caption,
+            send_tg_msg_fn=send_telegram_message,
+            send_twitter_thread_fn=send_twitter_thread,
+            twitter_enabled=TWITTER_ENABLED,
+            twitter_keys=(
+                TWITTER_API_KEY,
+                TWITTER_API_SECRET,
+                TWITTER_ACCESS_TOKEN,
+                TWITTER_ACCESS_TOKEN_SECRET
+            ),
+            # v3.2.0: Передаем Alpha Take и Context Tag для полных тредов
+            alpha_take=alpha_take,
+            context_tag=context_tag
+        )
         
         # ==========================================
-        # 5. ПОЛУЧЕНИЕ КАРТИНКИ
+        # 3. ИТОГОВЫЙ ОТЧЕТ
         # ==========================================
         
-        image_url = get_random_image_url()
-        logger.info(f"  ✓ Картинка выбрана: {image_url.split('/')[-1]}")
-        
-        # ==========================================
-        # 6. ОТПРАВКА В TELEGRAM
-        # ==========================================
-        
-        logger.info("\n📤 ОТПРАВКА В TELEGRAM")
-        
-        telegram_success = False
-        try:
-            telegram_success = send_telegram_photo_with_caption(
-                photo_url=image_url,
-                caption=telegram_caption,
-                parse_mode='HTML'
-            )
+        if success:
+            config = QUESTION_DISPLAY_CONFIG.get(question, {})
+            title = config.get("title", "Crypto Update")
             
-            if telegram_success:
-                logger.info("✓ Telegram: Успешно отправлено")
-            else:
-                logger.error("✗ Telegram: Ошибка отправки")
-                return False
-                
-        except Exception as e:
-            logger.error(f"✗ Telegram ошибка: {e}")
-            return False
-        
-        # Пауза между платформами
-        time.sleep(2)
-        
-        # ==========================================
-        # 7. ОТПРАВКА В TWITTER (ОПЦИОНАЛЬНО)
-        # ==========================================
-        
-        if TWITTER_ENABLED and all([TWITTER_API_KEY, TWITTER_API_SECRET,
-                                    TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
+            logger.info(f"\n{'='*50}")
+            logger.info(f"📊 ИТОГОВЫЙ ОТЧЕТ:")
+            logger.info(f"{'='*50}")
+            logger.info(f"  Вопрос: {question[:50]}...")
+            logger.info(f"  Заголовок: {title}")
+            logger.info(f"  Telegram: ✓ Отправлено")
+            logger.info(f"  Twitter: ✓ Обработано")
+            logger.info(f"  Alpha Take: {'✓ Включен' if ai_result else '✗ Отключен'}")
             
-            logger.info("\n🐦 ПОДГОТОВКА TWITTER КОНТЕНТА")
+            if ai_result:
+                logger.info(f"  Context Tag: {ai_result.get('context_tag', 'N/A')}")
+                logger.info(f"  AI Hashtags: {'✓ Да' if ai_result.get('hashtags') else '✗ Fallback'}")
             
-            try:
-                # Если есть Alpha Take - используем его для Twitter
-                if ai_result:
-                    logger.info("   Используем Alpha Take для Twitter")
-                    
-                    twitter_text = enhance_twitter_with_alpha_take(
-                        title=title,
-                        alpha_take=ai_result.get('alpha_take', tldr_text),
-                        context_tag=ai_result.get('context_tag'),
-                        hashtags=ai_result.get('hashtags', hashtags)
-                    )
-                else:
-                    logger.info("   Используем стандартное сокращение")
-                    
-                    # Без Alpha Take - обычное сокращение
-                    twitter_text = smart_shorten_for_twitter(
-                        text=tldr_text,
-                        title=title,
-                        hashtags=hashtags,
-                        max_total=270
-                    )
-                    twitter_text = f"{title}\n\n{twitter_text}\n\n{hashtags}"
-                
-                # Формируем контент для Twitter
-                twitter_content = {
-                    "mode": "single",
-                    "tweet": twitter_text
-                }
-                
-                tweet_length = get_twitter_length(twitter_text)
-                logger.info(f"  ✓ Tweet подготовлен: {tweet_length} символов")
-                
-                if tweet_length > 280:
-                    logger.warning(f"  ⚠️ Tweet слишком длинный, дополнительное сокращение...")
-                    twitter_text = twitter_text[:277] + "..."
-                    twitter_content["tweet"] = twitter_text
-                
-                # Отправляем
-                logger.info("\n📤 ОТПРАВКА В TWITTER")
-                tw_success = send_twitter_thread(twitter_content, image_url)
-                
-                if tw_success:
-                    logger.info("✓ Twitter: Успешно отправлено")
-                else:
-                    logger.warning("⚠️ Twitter: Ошибка отправки (не критично)")
-                
-            except Exception as e:
-                logger.error(f"✗ Twitter ошибка: {e}")
-                logger.warning("   Twitter публикация пропущена (не критично)")
-        else:
-            logger.info("\nℹ️  Twitter отключен или не настроен")
+            logger.info(f"{'='*50}\n")
         
-        # ==========================================
-        # 8. ИТОГОВЫЙ ОТЧЕТ
-        # ==========================================
-        
-        logger.info(f"\n{'='*50}")
-        logger.info(f"📊 ИТОГОВЫЙ ОТЧЕТ:")
-        logger.info(f"{'='*50}")
-        logger.info(f"  Вопрос: {question[:50]}...")
-        logger.info(f"  Заголовок: {title}")
-        logger.info(f"  TLDR длина: {len(tldr_text)} символов")
-        logger.info(f"  Telegram: ✓ Отправлено")
-        logger.info(f"  Alpha Take: {'✓ Включен' if ai_result else '✗ Отключен'}")
-        
-        if ai_result:
-            logger.info(f"  Context Tag: {ai_result.get('context_tag', 'N/A')}")
-            logger.info(f"  AI Hashtags: {'✓ Да' if ai_result.get('hashtags') else '✗ Fallback'}")
-        
-        logger.info(f"{'='*50}\n")
-        
-        return True
+        return success
         
     except Exception as e:
         logger.error(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА В ОТПРАВКЕ")
