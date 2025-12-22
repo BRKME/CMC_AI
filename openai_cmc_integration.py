@@ -1,25 +1,17 @@
 """
 OpenAI Integration для CMC AI - Alpha Take для текстовых новостей
-Version: 2.3.0 - Updated to 1-sentence Alpha Take format
+Version: 2.3.2 - Fixed: ◼️ emoji preserved in caption
 Генерирует Alpha Take, Context Tag и Hashtags для новостей CoinMarketCap AI
 
-ОБНОВЛЕНО В v2.3.0:
-- НОВЫЙ MASTER PROMPT: 1 sentence preferred (было: 2-4 sentences)
-- Optimized for high-density delivery (feed/alerts/SMS)
-- Более концентрированный и сжатый Alpha Take
+ОБНОВЛЕНО В v2.3.2:
+- FIX: ◼️ теперь добавляется перед "Alpha Take" в caption
+- AI не генерирует ◼️, мы добавляем его при форматировании
+- Убраны только лишние префиксы "ALPHA TAKE — Structural / Macro"
 
-ОБНОВЛЕНО В v2.2.0:
-- Обновлен MASTER PROMPT на финальную версию
-- Строже HARD RULES: No restating headline, No mechanical summary
-- Alpha Take теперь синтезирует: input + macro/liquidity/regulatory/narrative backdrop
-- Требование контекстуальности: never fragmented or isolated from wider news flow
-- Запрет на generic phrases
-- AI генерирует хэштеги
-
-ОБНОВЛЕНО В v2.1.0:
-- ОТКАТ: AI снова генерирует хэштеги (как было в v1.0)
-- Новый institutional-grade промпт
-- Запрещены эмодзи в Alpha Take и Context Tag
+ОБНОВЛЕНО В v2.3.1:
+- FIX: Убрано дублирование Context Tag и Hashtags
+- Улучшен парсинг ответа OpenAI
+- Очищен промпт от лишних типов
 """
 
 import os
@@ -36,7 +28,7 @@ client = None
 if OPENAI_API_KEY:
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("✓ OpenAI client initialized for CMC AI v2.3")
+        logger.info("✓ OpenAI client initialized for CMC AI v2.3.2")
     except Exception as e:
         logger.error(f"✗ Failed to initialize OpenAI client: {e}")
         client = None
@@ -44,8 +36,8 @@ else:
     logger.warning("⚠️ OPENAI_API_KEY not found - Alpha Take generation disabled")
 
 
-# MASTER PROMPT для CMC AI новостей - INSTITUTIONAL GRADE v2.3
-CMC_NEWS_MASTER_PROMPT = """🧠 MASTER PROMPT — Crypto Radar / OracAI
+# MASTER PROMPT для CMC AI новостей - INSTITUTIONAL GRADE v2.3.2
+CMC_NEWS_MASTER_PROMPT = """MASTER PROMPT — Crypto Radar / OracAI
 
 "Alpha Take — Institutional Market Intelligence"
 
@@ -66,209 +58,130 @@ Constraint: optimized for high-density delivery (feed / alerts / SMS)
 
 HARD RULES (STRICT)
 
-❌ No emojis
-❌ No calls to action
-❌ No execution or strategy language
-❌ No hype, storytelling, or motivational tone
-❌ No restating the headline or data inside Alpha Take
-❌ No mechanical summary of the input
-❌ No simplistic "this is good/bad" framing
+- No emojis in the analysis text itself
+- No calls to action
+- No execution or strategy language
+- No hype, storytelling, or motivational tone
+- No restating the headline or data inside Alpha Take
+- No mechanical summary of the input
+- No simplistic "this is good/bad" framing
+- No prefixes like "ALPHA TAKE —" or type labels in the analysis text
+- No visual symbols in the analysis text
 
 Bullish / bearish wording is not allowed in body text.
 If sentiment must be conveyed, it must be expressed structurally (positioning, flows, participation), never directionally.
 
 OUTPUT FORMAT (MANDATORY)
 
-ALPHA_TAKE: [1 sentence preferred. Maximum 2 sentences only if additional structure is essential. Dense, precise, non-repetitive. Zero retelling of input. Must synthesize: (1) specific input AND (2) prevailing macro, liquidity, regulatory, and narrative backdrop. Never fragmented or isolated from wider news flow.]
+Return ONLY these three lines with NO additional text, NO type labels, NO symbols in the text:
 
-CONTEXT_TAG: [ONE line only. ONE category only. 2–4 words. No emojis. No directional bias.]
+ALPHA_TAKE: [Your analysis here - 1 sentence preferred, maximum 2-3 if structure needed]
+CONTEXT_TAG: [2-4 words only]
+HASHTAGS: [3-5 hashtags with # symbol]
 
-HASHTAGS: [Generate 3-5 relevant, contextual hashtags based on current market state and content. Use professional vocabulary. Format: #Tag1 #Tag2 #Tag3]
+CRITICAL: Do NOT include in the analysis text:
+- Type indicators ("Structural / Macro", "Flow & Positioning", "Narrative & Attention")
+- "ALPHA TAKE —" prefix
+- Section headers
+- Visual symbols
+- Any explanatory text
 
-◼ ALPHA TAKE — CORE DEFINITION
+ALPHA TAKE — CORE DEFINITION
 
 The Alpha Take answers one question only:
 
 "What does this mean for market participants right now, given the broader market and news environment?"
 
 It is:
-• Interpretive, not predictive
-• Descriptive, not prescriptive
-• About behavior and structure, not outcomes
-• Contextual — never fragmented or isolated from the wider news flow
+- Interpretive, not predictive
+- Descriptive, not prescriptive
+- About behavior and structure, not outcomes
+- Contextual — never fragmented or isolated from the wider news flow
 
 Alpha Take must synthesize:
-• the specific input (news / data / indicator), and
-• the prevailing macro, liquidity, regulatory, and narrative backdrop
+- the specific input (news / data / indicator), and
+- the prevailing macro, liquidity, regulatory, and narrative backdrop
 
-◼ ALPHA TAKE — STYLE RULES
+ALPHA TAKE — STYLE RULES
 
-Length
+Length:
+- 1 sentence preferred for sentiment dashboards, recurring indicators, positioning snapshots
+- Up to 2-3 sentences max only if additional structure is essential
 
-1 sentence preferred for:
-• sentiment dashboards
-• recurring indicators
-• positioning snapshots
+Writing constraints:
+- Dense, precise, non-repetitive
+- Zero retelling of the input
+- Zero generic filler ("creates uncertainty", "could impact markets")
 
-Up to 2–3 sentences max only if additional structure is added
+Alpha Take must emphasize second-order effects:
+- shifts in incentives
+- changes in participant behavior
+- liquidity sensitivity or constraints
+- crowding vs dispersion
+- narrative fatigue, overlap, or fragmentation
+- regime stability vs fragility
 
-Writing constraints
-• Dense, precise, non-repetitive
-• Zero retelling of the input
-• Zero generic filler ("creates uncertainty", "could impact markets")
+THREE TYPES OF ALPHA TAKE
 
-Alpha Take must emphasize second-order effects, such as:
-• shifts in incentives
-• changes in participant behavior
-• liquidity sensitivity or constraints
-• crowding vs dispersion
-• narrative fatigue, overlap, or fragmentation
-• regime stability vs fragility
+Select exactly ONE type internally (but DO NOT include type name in output):
 
-If relevant, state what would need to change for the interpretation to shift — without implying a trade.
+1. Flow & Positioning
+Use when content includes: ETF inflows/outflows, open interest, liquidations, funding rates, leverage, Bitcoin dominance, on-chain positioning
+Focus: Risk appetite shifts, de-risking vs re-leveraging, capital concentration/dispersion, asymmetry building/unwinding
 
-THREE TYPES OF ◼ ALPHA TAKE
+2. Narrative & Attention
+Use when content includes: Sector/theme narratives (L1, AI, DeFi, infra), social/media momentum, KOL-driven repricing
+Focus: Where attention rotates vs where capital is not, narrative crowding vs early-stage themes, consensus formation/fatigue/fragmentation
 
-Select exactly ONE per analysis:
+3. Structural / Macro
+Use when content includes: Regulation/policy, macro developments, market structure changes, adoption/infrastructure shifts
+Focus: Regime transitions, long-duration constraints/tail risks, frictions affecting liquidity/access/participation
 
-1️⃣ Alpha Take — Flow & Positioning
+CONTEXT TAG — RULES
 
-Use when content includes:
-• ETF inflows / outflows
-• Open interest, liquidations
-• Funding rates, leverage
-• Bitcoin dominance
-• On-chain positioning
+- ONE line only
+- ONE category only
+- 2-4 words
+- No emojis
+- No directional bias
+- Context ≠ signal
 
-Primary focus:
-• Risk appetite shifts
-• De-risking vs re-leveraging
-• Capital concentration or dispersion
-• Asymmetry building or unwinding
-
-2️⃣ Alpha Take — Narrative & Attention
-
-Use when content includes:
-• Sector or theme narratives (L1, AI, DeFi, infra)
-• Social or media momentum
-• KOL-driven or narrative repricing
-
-Primary focus:
-• Where attention is rotating vs where capital is not
-• Narrative crowding vs early-stage themes
-• Consensus formation, fatigue, or fragmentation
-
-3️⃣ Alpha Take — Structural / Macro
-
-Use when content includes:
-• Regulation or policy
-• Macro developments
-• Market structure changes
-• Adoption or infrastructure shifts
-
-Primary focus:
-• Regime transitions
-• Long-duration constraints or tail risks
-• Frictions affecting liquidity, access, or participation
-
-CONTEXT TAG — FINAL LINE (MANDATORY)
-
-Rules:
-• ONE line only
-• ONE category only
-• 2–4 words
-• No emojis
-• No directional bias
-• Context ≠ signal
-
-OPTIMIZED CONTEXT TAG CATEGORIES
-
-🧩 Risk Regime (macro liquidity & risk appetite)
-Examples:
-• Risk-off environment
-• Fragile risk-on
-• Liquidity-driven regime
-• High uncertainty phase
-
-📈 Market Regime (price behavior & structure)
-Examples:
-• Volatile range
-• Compression phase
-• Trend transition phase
-• Momentum exhaustion
-
-⏳ Time Horizon (dominant timeframe implied)
-Examples:
-• Near-term volatility
-• Short-term cautious
-• Medium-term constructive
-• Long-duration shift
-
-Use symbol ◼ before Alpha Take Title
-
-🧠 Positioning Bias (crowding & exposure)
-Examples:
-• Defensive positioning
-• Light exposure
-• Crowded longs
-• De-risked market
-
-DECISION TREE — CONTEXT TAG
-
-• References flows, leverage, liquidity → Risk Regime / Positioning Bias
-• Describes volatility or price structure → Market Regime
-• Emphasizes duration over price → Time Horizon
-• Core insight is crowding or exposure → Positioning Bias
-
-⚠️ Never mix categories
-⚠️ Avoid mechanical repetition across posts
-
-WHEN ◼ ALPHA TAKE IS OPTIONAL
-
-Alpha Take may be omitted only for:
-• Ultra-short headlines
-• Pure data prints
-• Repeated intraday updates
-
-➡️ Context Tag may still be used alone.
+Categories:
+Risk Regime: Risk-off environment, Fragile risk-on, Liquidity-driven regime, High uncertainty phase
+Market Regime: Volatile range, Compression phase, Trend transition phase, Momentum exhaustion
+Time Horizon: Near-term volatility, Short-term cautious, Medium-term constructive, Long-duration shift
+Positioning Bias: Defensive positioning, Light exposure, Crowded longs, De-risked market
 
 HASHTAGS GUIDELINES
 
-• Generate 3-5 hashtags relevant to the content
-• Use professional, market-focused vocabulary
-• Avoid generic tags like #Crypto #Bitcoin unless specifically relevant
-• Examples: #BTCFlows #InstitutionalDemand #MacroRisk #DeFiRotation #AltcoinSeason
-• Format: #CamelCase for multi-word tags
+- Generate 3-5 hashtags relevant to the content
+- Use professional, market-focused vocabulary
+- Avoid generic tags like #Crypto #Bitcoin unless specifically relevant
+- Examples: #BTCFlows #InstitutionalDemand #MacroRisk #DeFiRotation #AltcoinSeason
+- Format: #CamelCase for multi-word tags
 
-QUALITY CHECK (INTERNAL)
+QUALITY CHECK
 
 Before finalizing, verify:
-• Does this reduce noise?
-• Does it explain structure, not summary?
-• Is it anchored in the broader news and regime context, not isolated?
-• Would a hedge fund analyst find it immediately useful?
-
-If yes → publish
-If no → refine
+- Does this reduce noise?
+- Does it explain structure, not summary?
+- Is it anchored in the broader news and regime context, not isolated?
+- Would a hedge fund analyst find it immediately useful?
 
 EXAMPLE OUTPUT
 
 Input: "Bitcoin ETF flows show sustained positive inflows after weeks of outflows. Meanwhile, altcoins remain suppressed with dominance near 60%."
 
 ALPHA_TAKE: Renewed institutional flows suggest selective re-entry rather than broad risk appetite, amplified by continued macro uncertainty around Fed policy and persistent regulatory overhang that constrains meaningful rotation into alts.
-
 CONTEXT_TAG: Selective risk-on
-
 HASHTAGS: #BTCFlows #InstitutionalDemand #SelectiveRisk
 
 Remember:
-• NO emojis in Alpha Take or Context Tag
-• NO restating the headline
-• NO mechanical summary
-• ALWAYS contextualize within broader market environment
-• Hashtags should be generated and relevant
-• Professional institutional tone
-• 1 SENTENCE PREFERRED (2-3 max if structure needed)
+- Return ONLY the three fields above
+- NO type labels in the analysis text
+- NO "ALPHA TAKE —" prefix in the analysis
+- 1 sentence preferred for Alpha Take
+- Professional institutional tone
 """
 
 
@@ -276,7 +189,7 @@ def get_ai_alpha_take(news_text, question_context=""):
     """
     Получает Alpha Take от OpenAI для текстовой новости
     
-    v2.3: 1 sentence preferred Alpha Take (was: 2-4 sentences)
+    v2.3.2: Clean parsing, ◼️ added during caption formatting
     
     Args:
         news_text: Текст новости/анализа от CMC AI
@@ -300,12 +213,12 @@ def get_ai_alpha_take(news_text, question_context=""):
         if question_context:
             full_input = f"Question Context: {question_context}\n\nNews/Analysis:\n{news_text}"
         
-        logger.info(f"🤖 Requesting Alpha Take from OpenAI (v2.3 - 1 sentence)...")
+        logger.info(f"🤖 Requesting Alpha Take from OpenAI (v2.3.2)...")
         logger.info(f"   Input length: {len(full_input)} chars")
         
         # Вызываем OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Быстрая и недорогая модель
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -316,7 +229,7 @@ def get_ai_alpha_take(news_text, question_context=""):
                     "content": full_input
                 }
             ],
-            max_tokens=250,  # Уменьшено с 350 (короче Alpha Take)
+            max_tokens=250,
             temperature=0.7
         )
         
@@ -331,10 +244,29 @@ def get_ai_alpha_take(news_text, question_context=""):
         
         for line in content.split('\n'):
             line = line.strip()
+            
+            # Пропускаем пустые строки
+            if not line:
+                continue
+            
             if line.startswith('ALPHA_TAKE:'):
+                # Убираем префикс
                 alpha_take = line.replace('ALPHA_TAKE:', '').strip()
+                
+                # Убираем лишние префиксы если AI всё-таки их добавил
+                # НО НЕ убираем ◼️ - его мы добавим сами при форматировании
+                alpha_take = alpha_take.replace('ALPHA TAKE —', '').strip()
+                alpha_take = alpha_take.replace('Structural / Macro', '').strip()
+                alpha_take = alpha_take.replace('Flow & Positioning', '').strip()
+                alpha_take = alpha_take.replace('Narrative & Attention', '').strip()
+                
+                # Убираем двойные пробелы
+                while '  ' in alpha_take:
+                    alpha_take = alpha_take.replace('  ', ' ')
+                    
             elif line.startswith('CONTEXT_TAG:'):
                 context_tag = line.replace('CONTEXT_TAG:', '').strip()
+                
             elif line.startswith('HASHTAGS:'):
                 hashtags = line.replace('HASHTAGS:', '').strip()
         
@@ -342,8 +274,7 @@ def get_ai_alpha_take(news_text, question_context=""):
         if not alpha_take:
             logger.warning(f"Could not parse Alpha Take from response")
             logger.warning(f"  Response: {content[:200]}...")
-            # Fallback: используем весь ответ
-            alpha_take = content
+            return None
         
         logger.info(f"  ✓ Alpha Take: {alpha_take[:100]}...")
         if context_tag:
@@ -354,7 +285,7 @@ def get_ai_alpha_take(news_text, question_context=""):
         return {
             "alpha_take": alpha_take,
             "context_tag": context_tag,
-            "hashtags": hashtags  # v2.3: AI генерирует хэштеги
+            "hashtags": hashtags
         }
         
     except Exception as e:
@@ -368,14 +299,14 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     """
     Добавляет Alpha Take к caption для Telegram
     
-    v2.3: Supports shorter 1-sentence Alpha Take
+    v2.3.2: ◼️ добавляется перед "Alpha Take"
     
     Format:
     <title>
     
     <original_text_summary>
     
-    Alpha Take
+    ◼️ Alpha Take
     <alpha_take>
     
     Context: <context_tag>
@@ -399,23 +330,39 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     context_tag = ai_result.get('context_tag', '')
     hashtags_ai = ai_result.get('hashtags', '')
     
-    # v2.3: Используем AI хэштеги если есть, иначе fallback
+    # Используем AI хэштеги если есть, иначе fallback
     hashtags = hashtags_ai if hashtags_ai else hashtags_fallback
     
+    # Убираем из текста блок "Alpha Take" если он там есть (для избежания дублирования)
+    if 'Alpha Take' in text:
+        alpha_start = text.find('Alpha Take')
+        if alpha_start > 0:
+            text = text[:alpha_start].strip()
+    
+    # Также убираем "CONTEXT_TAG:" и "HASHTAGS:" если они в тексте
+    if 'CONTEXT_TAG:' in text:
+        context_start = text.find('CONTEXT_TAG:')
+        if context_start > 0:
+            text = text[:context_start].strip()
+    
+    if 'HASHTAGS:' in text:
+        hashtags_start = text.find('HASHTAGS:')
+        if hashtags_start > 0:
+            text = text[:hashtags_start].strip()
+    
     # Сокращаем оригинальный текст если добавляем Alpha Take
-    # Чтобы уместиться в Telegram лимиты
-    max_original_text = 800  # Оставляем место для Alpha Take
+    max_original_text = 800
     if len(text) > max_original_text:
         text = text[:max_original_text-3] + "..."
     
     # Формируем enhanced caption
     caption = f"<b>{title}</b>\n\n"
     
-    # Оригинальный контент (сокращенный)
+    # Оригинальный контент (очищенный от дублей)
     caption += f"{text}\n\n"
     
-    # Alpha Take секция
-    caption += f"<b>Alpha Take</b>\n"
+    # Alpha Take секция с ◼️
+    caption += f"◼️ <b>Alpha Take</b>\n"
     caption += f"{alpha_take}\n\n"
     
     # Context Tag если есть
@@ -434,7 +381,7 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
         
         caption = f"<b>{title}</b>\n\n"
         caption += f"{text}\n\n"
-        caption += f"<b>Alpha Take</b>\n"
+        caption += f"◼️ <b>Alpha Take</b>\n"
         caption += f"{alpha_take}\n\n"
         if context_tag:
             caption += f"<i>Context: {context_tag}</i>\n\n"
@@ -447,11 +394,11 @@ def enhance_twitter_with_alpha_take(title, alpha_take, context_tag, hashtags):
     """
     Создаёт Twitter контент с Alpha Take
     
-    v2.3: Works with shorter 1-sentence Alpha Take
+    v2.3.2: Clean output for Twitter
     
     Args:
         title: Заголовок
-        alpha_take: Alpha Take текст (1 sentence preferred)
+        alpha_take: Alpha Take текст (чистый, без префиксов)
         context_tag: Context Tag
         hashtags: Хештеги (AI-generated или fallback)
         
@@ -464,15 +411,14 @@ def enhance_twitter_with_alpha_take(title, alpha_take, context_tag, hashtags):
     # Формат: Title + Alpha Take + Context + Hashtags
     
     # Резервируем место
-    reserved = len(title) + len(hashtags) + 20  # +20 для форматирования
+    reserved = len(title) + len(hashtags) + 20
     if context_tag:
         reserved += len(f"Context: {context_tag}") + 4
     
     available_for_alpha = max_length - reserved
     
-    # v2.3: Alpha Take теперь короче (1 sentence), обычно влезет
+    # Alpha Take короче, обычно влезет
     if len(alpha_take) > available_for_alpha:
-        # Сокращаем только если действительно не влезает
         short_alpha = alpha_take[:available_for_alpha-3] + "..."
     else:
         short_alpha = alpha_take
