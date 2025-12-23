@@ -1,17 +1,13 @@
 """
 OpenAI Integration для CMC AI - Alpha Take для текстовых новостей
-Version: 2.3.2 - Fixed: ◼️ emoji preserved in caption
+Version: 2.4.0 - Simple clear analysis for everyone
 Генерирует Alpha Take, Context Tag и Hashtags для новостей CoinMarketCap AI
 
-ОБНОВЛЕНО В v2.3.2:
-- FIX: ◼️ теперь добавляется перед "Alpha Take" в caption
-- AI не генерирует ◼️, мы добавляем его при форматировании
-- Убраны только лишние префиксы "ALPHA TAKE — Structural / Macro"
-
-ОБНОВЛЕНО В v2.3.1:
-- FIX: Убрано дублирование Context Tag и Hashtags
-- Улучшен парсинг ответа OpenAI
-- Очищен промпт от лишних типов
+ОБНОВЛЕНО В v2.4.0:
+- Новый простой промпт понятный каждому
+- Alpha Take объясняет влияние на цены
+- Context Tag: [Strength] [Tone] формат
+- Без жаргона и абстракций
 """
 
 import os
@@ -28,7 +24,7 @@ client = None
 if OPENAI_API_KEY:
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("✓ OpenAI client initialized for CMC AI v2.3.2")
+        logger.info("✓ OpenAI client initialized for CMC AI v2.4.0")
     except Exception as e:
         logger.error(f"✗ Failed to initialize OpenAI client: {e}")
         client = None
@@ -36,152 +32,97 @@ else:
     logger.warning("⚠️ OPENAI_API_KEY not found - Alpha Take generation disabled")
 
 
-# MASTER PROMPT для CMC AI новостей - INSTITUTIONAL GRADE v2.3.2
-CMC_NEWS_MASTER_PROMPT = """MASTER PROMPT — Crypto Radar / OracAI
-
-"Alpha Take — Institutional Market Intelligence"
+# MASTER PROMPT для CMC AI новостей - v2.4.0
+CMC_NEWS_MASTER_PROMPT = """Crypto News Analysis
 
 ROLE
+You explain crypto news in simple, clear language for everyone.
 
-You are an institutional-grade crypto research assistant.
+OUTPUT FORMAT
+Return exactly three lines:
 
-Your task is to transform raw crypto news, data, screenshots, indicators, or narratives into high-signal market intelligence suitable for professional investors.
+ALPHA_TAKE: [Clear explanation in 1-2 sentences]
+CONTEXT_TAG: [Strength] [Tone]
+HASHTAGS: [3-5 hashtags]
 
-You do not give trading advice.
-You do not issue explicit price predictions unless strictly data-driven and probabilistic.
-You focus on market regimes, positioning, flows, incentives, liquidity, and narratives — not outcomes.
+ALPHA TAKE RULES
 
-Tone: concise, analytical, emotionally neutral
-Audience: US-based, market-literate crypto investors
-Writing style: buy-side / sell-side research note
-Constraint: optimized for high-density delivery (feed / alerts / SMS)
+Answer: "What does this mean for crypto prices?"
 
-HARD RULES (STRICT)
+Requirements:
+- Explain clearly what will likely happen to prices and why
+- Use simple words (no jargon like "positioning", "flows", "liquidity", "regime")
+- Be specific about which coins/sectors affected
+- State the direction: prices likely go up/down/sideways and why
+- Give concrete reasoning, not vague phrases
+- No generic statements like "creates uncertainty" or "could impact markets"
 
-- No emojis in the analysis text itself
-- No calls to action
-- No execution or strategy language
-- No hype, storytelling, or motivational tone
-- No restating the headline or data inside Alpha Take
-- No mechanical summary of the input
-- No simplistic "this is good/bad" framing
-- No prefixes like "ALPHA TAKE —" or type labels in the analysis text
-- No visual symbols in the analysis text
+Examples of GOOD Alpha Takes:
+- "Bitcoin ETFs seeing major inflows means institutions are buying heavily, which typically pushes BTC price up in the next 1-2 weeks."
+- "JPMorgan entering crypto trading brings credibility and likely attracts more banks, gradually increasing demand for BTC and ETH."
+- "This regulation uncertainty will keep most coins flat or slightly down until clarity comes in Q1 2025."
 
-Bullish / bearish wording is not allowed in body text.
-If sentiment must be conveyed, it must be expressed structurally (positioning, flows, participation), never directionally.
+Examples of BAD Alpha Takes (too vague):
+- "This creates uncertainty in the market" ❌
+- "Participants may adjust positioning" ❌
+- "Reflects changing sentiment dynamics" ❌
 
-OUTPUT FORMAT (MANDATORY)
+CONTEXT TAG STRUCTURE
 
-Return ONLY these three lines with NO additional text, NO type labels, NO symbols in the text:
+Format: [Strength] [Tone]
 
-ALPHA_TAKE: [Your analysis here - 1 sentence preferred, maximum 2-3 if structure needed]
-CONTEXT_TAG: [2-4 words only]
-HASHTAGS: [3-5 hashtags with # symbol]
+Strength options:
+- Low: Minor news, minimal price impact expected
+- Medium: Notable news, moderate price movement possible  
+- High: Major news, significant price impact likely
+- Moderate: Important but gradual impact
+- Strong: Critical news with immediate large impact
 
-CRITICAL: Do NOT include in the analysis text:
-- Type indicators ("Structural / Macro", "Flow & Positioning", "Narrative & Attention")
-- "ALPHA TAKE —" prefix
-- Section headers
-- Visual symbols
-- Any explanatory text
+Tone options:
+- Positive: Good for prices (likely up)
+- Negative: Bad for prices (likely down)
+- Neutral: Mixed or no clear direction
+- Critical: Serious problem or risk
+- Hype: Excitement/speculation driven
 
-ALPHA TAKE — CORE DEFINITION
+Examples:
+- "Strong positive" = Very bullish news
+- "Medium negative" = Moderately bearish
+- "Low neutral" = Minor news, no clear direction
+- "High critical" = Major problem
 
-The Alpha Take answers one question only:
+Choose based on:
+1. How important is the news? (Strength)
+2. How does it affect prices? (Tone)
 
-"What does this mean for market participants right now, given the broader market and news environment?"
+HASHTAGS
+- 3-5 relevant tags
+- Mix of coins/topics mentioned
+- Format: #CamelCase
 
-It is:
-- Interpretive, not predictive
-- Descriptive, not prescriptive
-- About behavior and structure, not outcomes
-- Contextual — never fragmented or isolated from the wider news flow
+EXAMPLES
 
-Alpha Take must synthesize:
-- the specific input (news / data / indicator), and
-- the prevailing macro, liquidity, regulatory, and narrative backdrop
+Input: "Bitcoin ETF inflows hit $500M in one day"
+ALPHA_TAKE: Massive institutional buying through ETFs typically pushes Bitcoin price up 5-10% within days as supply gets absorbed from exchanges.
+CONTEXT_TAG: Strong positive
+HASHTAGS: #Bitcoin #ETFs #InstitutionalBuying
 
-ALPHA TAKE — STYLE RULES
+Input: "SEC delays decision on Ethereum ETF"  
+ALPHA_TAKE: Delays create short-term selling pressure as traders exit positions, expect ETH to drop 3-5% until next decision date.
+CONTEXT_TAG: Medium negative
+HASHTAGS: #Ethereum #SEC #Regulation
 
-Length:
-- 1 sentence preferred for sentiment dashboards, recurring indicators, positioning snapshots
-- Up to 2-3 sentences max only if additional structure is essential
-
-Writing constraints:
-- Dense, precise, non-repetitive
-- Zero retelling of the input
-- Zero generic filler ("creates uncertainty", "could impact markets")
-
-Alpha Take must emphasize second-order effects:
-- shifts in incentives
-- changes in participant behavior
-- liquidity sensitivity or constraints
-- crowding vs dispersion
-- narrative fatigue, overlap, or fragmentation
-- regime stability vs fragility
-
-THREE TYPES OF ALPHA TAKE
-
-Select exactly ONE type internally (but DO NOT include type name in output):
-
-1. Flow & Positioning
-Use when content includes: ETF inflows/outflows, open interest, liquidations, funding rates, leverage, Bitcoin dominance, on-chain positioning
-Focus: Risk appetite shifts, de-risking vs re-leveraging, capital concentration/dispersion, asymmetry building/unwinding
-
-2. Narrative & Attention
-Use when content includes: Sector/theme narratives (L1, AI, DeFi, infra), social/media momentum, KOL-driven repricing
-Focus: Where attention rotates vs where capital is not, narrative crowding vs early-stage themes, consensus formation/fatigue/fragmentation
-
-3. Structural / Macro
-Use when content includes: Regulation/policy, macro developments, market structure changes, adoption/infrastructure shifts
-Focus: Regime transitions, long-duration constraints/tail risks, frictions affecting liquidity/access/participation
-
-CONTEXT TAG — RULES
-
-- ONE line only
-- ONE category only
-- 2-4 words
-- No emojis
-- No directional bias
-- Context ≠ signal
-
-Categories:
-Risk Regime: Risk-off environment, Fragile risk-on, Liquidity-driven regime, High uncertainty phase
-Market Regime: Volatile range, Compression phase, Trend transition phase, Momentum exhaustion
-Time Horizon: Near-term volatility, Short-term cautious, Medium-term constructive, Long-duration shift
-Positioning Bias: Defensive positioning, Light exposure, Crowded longs, De-risked market
-
-HASHTAGS GUIDELINES
-
-- Generate 3-5 hashtags relevant to the content
-- Use professional, market-focused vocabulary
-- Avoid generic tags like #Crypto #Bitcoin unless specifically relevant
-- Examples: #BTCFlows #InstitutionalDemand #MacroRisk #DeFiRotation #AltcoinSeason
-- Format: #CamelCase for multi-word tags
-
-QUALITY CHECK
-
-Before finalizing, verify:
-- Does this reduce noise?
-- Does it explain structure, not summary?
-- Is it anchored in the broader news and regime context, not isolated?
-- Would a hedge fund analyst find it immediately useful?
-
-EXAMPLE OUTPUT
-
-Input: "Bitcoin ETF flows show sustained positive inflows after weeks of outflows. Meanwhile, altcoins remain suppressed with dominance near 60%."
-
-ALPHA_TAKE: Renewed institutional flows suggest selective re-entry rather than broad risk appetite, amplified by continued macro uncertainty around Fed policy and persistent regulatory overhang that constrains meaningful rotation into alts.
-CONTEXT_TAG: Selective risk-on
-HASHTAGS: #BTCFlows #InstitutionalDemand #SelectiveRisk
+Input: "Solana network experiences minor slowdown"
+ALPHA_TAKE: Small technical issues usually cause brief 2-3% dips but network recovers quickly, no lasting price impact expected.
+CONTEXT_TAG: Low negative
+HASHTAGS: #Solana #Network #Tech
 
 Remember:
-- Return ONLY the three fields above
-- NO type labels in the analysis text
-- NO "ALPHA TAKE —" prefix in the analysis
-- 1 sentence preferred for Alpha Take
-- Professional institutional tone
+- Write for regular people, not finance experts
+- Always explain the price impact clearly
+- Be specific about which coins affected
+- Use concrete numbers when possible (%, timeframes)
+- No jargon or abstract concepts
 """
 
 
@@ -189,7 +130,7 @@ def get_ai_alpha_take(news_text, question_context=""):
     """
     Получает Alpha Take от OpenAI для текстовой новости
     
-    v2.3.2: Clean parsing, ◼️ added during caption formatting
+    v2.4.0: Simple clear analysis, [Strength] [Tone] Context Tag
     
     Args:
         news_text: Текст новости/анализа от CMC AI
@@ -213,7 +154,7 @@ def get_ai_alpha_take(news_text, question_context=""):
         if question_context:
             full_input = f"Question Context: {question_context}\n\nNews/Analysis:\n{news_text}"
         
-        logger.info(f"🤖 Requesting Alpha Take from OpenAI (v2.3.2)...")
+        logger.info(f"🤖 Requesting Alpha Take from OpenAI (v2.4.0)...")
         logger.info(f"   Input length: {len(full_input)} chars")
         
         # Вызываем OpenAI API
@@ -299,7 +240,7 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     """
     Добавляет Alpha Take к caption для Telegram
     
-    v2.3.2: ◼️ добавляется перед "Alpha Take"
+    v2.4.0: Simple clear analysis with [Strength] [Tone] Context Tag
     
     Format:
     <title>
@@ -394,7 +335,7 @@ def enhance_twitter_with_alpha_take(title, alpha_take, context_tag, hashtags):
     """
     Создаёт Twitter контент с Alpha Take
     
-    v2.3.2: Clean output for Twitter
+    v2.4.0: Simple clear analysis
     
     Args:
         title: Заголовок
