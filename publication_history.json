@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2025-12-27T13:35:13.527396+00:00",
+    "kols": "2025-12-27T22:27:30.158869+00:00",
     "dynamic": "2025-12-27T09:29:23.193886+00:00",
     "market_direction": "2025-12-27T14:26:54.023037+00:00",
     "narratives": "2025-12-27T16:34:09.734521+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "What compromised Trust Wallet browser extension?",
   "dynamic_published_at": "2025-12-27T09:29:23.193871+00:00",
   "last_publication": {
-    "question": "What upcoming events may impact crypto?",
-    "group": "events",
-    "published_at": "2025-12-27T19:22:32.324388+00:00",
-    "hour_utc": 19,
-    "answer_length": 3030
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2025-12-27T22:27:30.158880+00:00",
+    "hour_utc": 22,
+    "answer_length": 2481
   }
 }
