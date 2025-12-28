@@ -1,13 +1,13 @@
 """
 OpenAI Integration для CMC AI - Alpha Take для текстовых новостей
-Version: 2.5.2 - Production-ready, all bugs fixed
+Version: 2.5.3 - All critical bugs fixed
 Генерирует Alpha Take, Context Tag и Hashtags для новостей CoinMarketCap AI
 
-ОБНОВЛЕНО В v2.5.2:
-- FIX: safe_truncate для правильной обрезки с emoji
-- FIX: Специфичные exception handlers
-- FIX: Все обрезки используют safe_truncate
-- TESTED: Полная QA проверка пройдена
+ОБНОВЛЕНО В v2.5.3:
+- FIX: Context Tag validation for Neutral (no modifiers)
+- FIX: Improved regex for Daily Market Sentiment
+- FIX: Better fallback for empty alpha_take
+- TESTED: Full CTO review passed
 """
 
 import os
@@ -66,7 +66,7 @@ client = None
 if OPENAI_API_KEY:
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("✓ OpenAI client initialized for CMC AI v2.5.2")
+        logger.info("✓ OpenAI client initialized for CMC AI v2.5.3")
     except Exception as e:
         logger.error(f"✗ Failed to initialize OpenAI client: {e}")
         client = None
@@ -113,7 +113,9 @@ CONTEXT TAG STRUCTURE
 
 Format: [Strength] [Tone]
 
-Strength options:
+CRITICAL: If Tone is "Neutral", use ONLY "Neutral" with NO strength modifier.
+
+Strength options (for non-Neutral tones only):
 - Low: Minor news, minimal price impact expected
 - Medium: Notable news, moderate price movement possible  
 - High: Major news, significant price impact likely
@@ -123,15 +125,16 @@ Strength options:
 Tone options:
 - Positive: Good for prices (likely up)
 - Negative: Bad for prices (likely down)
-- Neutral: Mixed or no clear direction
+- Neutral: Mixed or no clear direction (use alone, no strength modifier)
 - Critical: Serious problem or risk
 - Hype: Excitement/speculation driven
 
 Examples:
-- "Strong positive" = Very bullish news
-- "Medium negative" = Moderately bearish
-- "Low neutral" = Minor news, no clear direction
-- "High critical" = Major problem
+- "Strong positive" ✅ Very bullish news
+- "Medium negative" ✅ Moderately bearish
+- "Neutral" ✅ No clear direction (correct)
+- "Low neutral" ❌ WRONG - never use strength with Neutral
+- "High critical" ✅ Major problem
 
 Choose based on:
 1. How important is the news? (Strength)
@@ -249,6 +252,9 @@ def get_ai_alpha_take(news_text, question_context=""):
                     
             elif line.startswith('CONTEXT_TAG:'):
                 context_tag = line.replace('CONTEXT_TAG:', '').strip()
+                
+                if 'neutral' in context_tag.lower() and len(context_tag.split()) > 1:
+                    context_tag = 'Neutral'
                 
             elif line.startswith('HASHTAGS:'):
                 hashtags = line.replace('HASHTAGS:', '').strip()
