@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2026-01-01T13:39:15.614380+00:00",
+    "kols": "2026-01-02T13:38:53.385078+00:00",
     "dynamic": "2026-01-02T09:33:05.198304+00:00",
     "market_direction": "2026-01-02T08:39:55.725094+00:00",
     "narratives": "2026-01-01T23:28:36.329970+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Which L2s led fees this week?",
   "dynamic_published_at": "2026-01-02T09:33:05.198282+00:00",
   "last_publication": {
-    "question": "Which L2s led fees this week?",
-    "group": "DYNAMIC",
-    "published_at": "2026-01-02T09:33:05.198309+00:00",
-    "hour_utc": 9,
-    "answer_length": 2551
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2026-01-02T13:38:53.385097+00:00",
+    "hour_utc": 13,
+    "answer_length": 2641
   }
 }
