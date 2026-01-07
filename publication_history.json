@@ -1,7 +1,7 @@
 {
   "last_published": {
     "kols": "2026-01-07T13:47:52.711389+00:00",
-    "dynamic": "2026-01-07T09:37:05.287852+00:00",
+    "dynamic": "2026-01-07T21:29:27.470826+00:00",
     "market_direction": "2026-01-07T08:42:03.353686+00:00",
     "narratives": "2026-01-07T16:41:34.113241+00:00",
     "events": "2026-01-07T19:27:38.991025+00:00",
@@ -9,13 +9,13 @@
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
-  "last_dynamic_question": "What changes ETH blob fees today?",
-  "dynamic_published_at": "2026-01-07T09:37:05.287836+00:00",
+  "last_dynamic_question": "Which CEXs saw whale inflows?",
+  "dynamic_published_at": "2026-01-07T21:29:27.470809+00:00",
   "last_publication": {
-    "question": "What upcoming events may impact crypto?",
-    "group": "events",
-    "published_at": "2026-01-07T19:27:38.991040+00:00",
-    "hour_utc": 19,
-    "answer_length": 3217
+    "question": "Which CEXs saw whale inflows?",
+    "group": "DYNAMIC",
+    "published_at": "2026-01-07T21:29:27.470831+00:00",
+    "hour_utc": 21,
+    "answer_length": 2779
   }
 }
