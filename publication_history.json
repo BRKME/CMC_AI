@@ -3,7 +3,7 @@
     "kols": "2026-01-14T13:49:28.814985+00:00",
     "dynamic": "2026-01-12T21:30:03.986687+00:00",
     "market_direction": "2026-01-14T22:32:22.514071+00:00",
-    "narratives": "2026-01-14T16:42:14.891352+00:00",
+    "narratives": "2026-01-14T23:26:11.806847+00:00",
     "events": "2026-01-14T19:27:24.936655+00:00",
     "sentiment": "2026-01-14T18:45:55.906423+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Derivatives Open Interest Climbs 15.7% Today",
   "dynamic_published_at": "2026-01-12T21:30:03.986667+00:00",
   "last_publication": {
-    "question": "Why is the market up today?",
-    "group": "market_direction",
-    "published_at": "2026-01-14T22:32:22.514086+00:00",
-    "hour_utc": 22,
-    "answer_length": 2871
+    "question": "What are the trending narratives?",
+    "group": "narratives",
+    "published_at": "2026-01-14T23:26:11.806863+00:00",
+    "hour_utc": 23,
+    "answer_length": 2480
   }
 }
