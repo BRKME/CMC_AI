@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-01-15T13:49:33.256131+00:00",
     "dynamic": "2026-01-12T21:30:03.986687+00:00",
-    "market_direction": "2026-01-15T22:31:11.806641+00:00",
+    "market_direction": "2026-01-16T08:40:44.150277+00:00",
     "narratives": "2026-01-15T23:30:16.821274+00:00",
     "events": "2026-01-15T19:32:54.405530+00:00",
     "sentiment": "2026-01-16T06:47:22.141859+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Derivatives Open Interest Climbs 15.7% Today",
   "dynamic_published_at": "2026-01-12T21:30:03.986667+00:00",
   "last_publication": {
-    "question": "What is the market sentiment?",
-    "group": "sentiment",
-    "published_at": "2026-01-16T06:47:22.141875+00:00",
-    "hour_utc": 6,
-    "answer_length": 2528
+    "question": "Why is the market down today?",
+    "group": "market_direction",
+    "published_at": "2026-01-16T08:40:44.150298+00:00",
+    "hour_utc": 8,
+    "answer_length": 2384
   }
 }
