@@ -1450,10 +1450,14 @@ async def main_parser():
             current_hour = datetime.now(timezone.utc).hour
             scheduled_group = SCHEDULE.get(current_hour)
             
-            if not scheduled_group:
-                raise Exception(f"Нет расписания для часа {current_hour}")
-            
             logger.info(f"\n⏰ Текущий час UTC: {current_hour}")
+            
+            if not scheduled_group:
+                logger.info(f"⏭️  Нет публикации для часа {current_hour} (scheduled_group=None)")
+                logger.info("✓ Пропускаем этот час - это нормально")
+                logger.info("="*70)
+                return True  # Успешное завершение без публикации
+            
             logger.info(f"📅 По расписанию должна быть группа: {scheduled_group}")
             
             # Определяем какой вопрос публиковать
