@@ -5,17 +5,17 @@
     "market_direction": "2026-01-22T14:39:50.906569+00:00",
     "narratives": "2026-01-22T16:45:59.719366+00:00",
     "events": "2026-01-21T19:35:14.741786+00:00",
-    "sentiment": "2026-01-22T06:48:53.204193+00:00",
+    "sentiment": "2026-01-22T18:47:26.525129+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
   "last_dynamic_question": "Trump tariff retreat lifts BTC and equities",
   "dynamic_published_at": "2026-01-22T09:41:56.593028+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-01-22T16:45:59.719383+00:00",
-    "hour_utc": 16,
-    "answer_length": 3333
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-01-22T18:47:26.525148+00:00",
+    "hour_utc": 18,
+    "answer_length": 2906
   }
 }
