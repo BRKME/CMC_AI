@@ -1,7 +1,7 @@
 {
   "last_published": {
     "kols": "2026-01-27T14:39:21.772880+00:00",
-    "dynamic": "2026-01-27T09:42:14.779102+00:00",
+    "dynamic": "2026-01-27T21:27:26.120538+00:00",
     "market_direction": "2026-01-27T08:44:56.056485+00:00",
     "narratives": "2026-01-27T16:44:13.743468+00:00",
     "events": "2026-01-27T19:35:06.037319+00:00",
@@ -9,13 +9,13 @@
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
-  "last_dynamic_question": "BTC slide triggers $750M long liquidations",
-  "dynamic_published_at": "2026-01-27T09:42:14.779087+00:00",
+  "last_dynamic_question": "Binance launches Tesla equity perpetual futures",
+  "dynamic_published_at": "2026-01-27T21:27:26.120521+00:00",
   "last_publication": {
-    "question": "What upcoming events may impact crypto?",
-    "group": "events",
-    "published_at": "2026-01-27T19:35:06.037335+00:00",
-    "hour_utc": 19,
-    "answer_length": 2510
+    "question": "Binance launches Tesla equity perpetual futures",
+    "group": "DYNAMIC",
+    "published_at": "2026-01-27T21:27:26.120542+00:00",
+    "hour_utc": 21,
+    "answer_length": 3529
   }
 }
