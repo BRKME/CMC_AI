@@ -5,17 +5,17 @@
     "market_direction": "2026-01-28T14:39:51.111992+00:00",
     "narratives": "2026-01-28T16:50:59.367347+00:00",
     "events": "2026-01-27T19:35:06.037319+00:00",
-    "sentiment": "2026-01-28T06:50:05.843698+00:00",
+    "sentiment": "2026-01-28T18:49:33.859827+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
   "last_dynamic_question": "Senate panel reschedules crypto market structure vote",
   "dynamic_published_at": "2026-01-28T09:42:41.194991+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-01-28T16:50:59.367361+00:00",
-    "hour_utc": 16,
-    "answer_length": 2773
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-01-28T18:49:33.859844+00:00",
+    "hour_utc": 18,
+    "answer_length": 2197
   }
 }
