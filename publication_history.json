@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-01-30T13:14:50.981877+00:00",
     "dynamic": "2026-01-30T21:36:11.013519+00:00",
-    "market_direction": "2026-01-30T22:35:50.377134+00:00",
+    "market_direction": "2026-01-31T08:40:43.113643+00:00",
     "narratives": "2026-01-30T23:34:43.539469+00:00",
     "events": "2026-01-30T19:38:59.108802+00:00",
     "sentiment": "2026-01-31T06:53:32.727225+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Hong Kong regulators start reviewing stablecoin licenses",
   "dynamic_published_at": "2026-01-30T21:36:11.013503+00:00",
   "last_publication": {
-    "question": "What is the market sentiment?",
-    "group": "sentiment",
-    "published_at": "2026-01-31T06:53:32.727248+00:00",
-    "hour_utc": 6,
-    "answer_length": 1906
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-01-31T08:40:43.113658+00:00",
+    "hour_utc": 8,
+    "answer_length": 3391
   }
 }
