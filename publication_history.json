@@ -5,17 +5,17 @@
     "market_direction": "2026-02-01T14:35:32.109238+00:00",
     "narratives": "2026-02-01T16:40:28.259385+00:00",
     "events": "2026-01-31T19:28:34.283924+00:00",
-    "sentiment": "2026-01-31T18:44:58.243711+00:00",
+    "sentiment": "2026-02-01T18:49:25.778099+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
   "last_dynamic_question": "Liquidation cascade tops $2.5B across crypto",
   "dynamic_published_at": "2026-02-01T09:40:23.501881+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-02-01T16:40:28.259401+00:00",
-    "hour_utc": 16,
-    "answer_length": 3008
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-02-01T18:49:25.778114+00:00",
+    "hour_utc": 18,
+    "answer_length": 2105
   }
 }
