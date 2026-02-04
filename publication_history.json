@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-02-04T13:19:35.721522+00:00",
     "dynamic": "2026-02-04T09:57:03.184057+00:00",
-    "market_direction": "2026-02-04T08:55:37.234250+00:00",
+    "market_direction": "2026-02-04T14:51:19.078150+00:00",
     "narratives": "2026-02-03T23:36:58.645742+00:00",
     "events": "2026-02-03T19:07:33.512614+00:00",
     "sentiment": "2026-02-02T06:11:49.526646+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "BTC hits 14-month low as $740M liquidated",
   "dynamic_published_at": "2026-02-04T09:57:03.184042+00:00",
   "last_publication": {
-    "question": "What are KOLs discussing?",
-    "group": "kols",
-    "published_at": "2026-02-04T13:19:35.721537+00:00",
-    "hour_utc": 13,
-    "answer_length": 3320
+    "question": "Why is the market down today?",
+    "group": "market_direction",
+    "published_at": "2026-02-04T14:51:19.078168+00:00",
+    "hour_utc": 14,
+    "answer_length": 2814
   }
 }
