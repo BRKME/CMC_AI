@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-02-06T13:18:46.464872+00:00",
     "dynamic": "2026-02-06T21:40:12.934709+00:00",
-    "market_direction": "2026-02-06T22:35:36.764170+00:00",
+    "market_direction": "2026-02-07T08:43:02.200032+00:00",
     "narratives": "2026-02-06T23:35:05.555267+00:00",
     "events": "2026-02-06T19:42:24.992304+00:00",
     "sentiment": "2026-02-07T06:55:56.812253+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Crypto fear index drops to 5 reading",
   "dynamic_published_at": "2026-02-06T21:40:12.934694+00:00",
   "last_publication": {
-    "question": "What is the market sentiment?",
-    "group": "sentiment",
-    "published_at": "2026-02-07T06:55:56.812267+00:00",
-    "hour_utc": 6,
-    "answer_length": 2884
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-02-07T08:43:02.200045+00:00",
+    "hour_utc": 8,
+    "answer_length": 2647
   }
 }
