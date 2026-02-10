@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-02-10T13:44:33.689292+00:00",
     "dynamic": "2026-02-10T21:53:46.809714+00:00",
-    "market_direction": "2026-02-09T22:49:48.931649+00:00",
+    "market_direction": "2026-02-10T22:52:39.872655+00:00",
     "narratives": "2026-02-09T23:48:44.350826+00:00",
     "events": "2026-02-10T19:19:15.846892+00:00",
     "sentiment": "2026-02-08T18:50:57.752704+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Memecoins and AI tokens outpace BTC",
   "dynamic_published_at": "2026-02-10T21:53:46.809698+00:00",
   "last_publication": {
-    "question": "Memecoins and AI tokens outpace BTC",
-    "group": "DYNAMIC",
-    "published_at": "2026-02-10T21:53:46.809718+00:00",
-    "hour_utc": 21,
-    "answer_length": 4452
+    "question": "Why is the market down today?",
+    "group": "market_direction",
+    "published_at": "2026-02-10T22:52:39.872668+00:00",
+    "hour_utc": 22,
+    "answer_length": 2776
   }
 }
