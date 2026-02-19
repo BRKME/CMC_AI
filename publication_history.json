@@ -4,7 +4,7 @@
     "dynamic": "2026-02-19T09:58:45.776995+00:00",
     "market_direction": "2026-02-19T14:57:01.034005+00:00",
     "narratives": "2026-02-18T23:38:54.217004+00:00",
-    "events": "2026-02-19T19:03:05.451028+00:00",
+    "events": "2026-02-19T19:43:36.448892+00:00",
     "sentiment": "2026-02-19T06:04:58.728197+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
@@ -14,8 +14,8 @@
   "last_publication": {
     "question": "What upcoming events may impact crypto?",
     "group": "events",
-    "published_at": "2026-02-19T19:03:05.451045+00:00",
+    "published_at": "2026-02-19T19:43:36.448909+00:00",
     "hour_utc": 19,
-    "answer_length": 4081
+    "answer_length": 3993
   }
 }
