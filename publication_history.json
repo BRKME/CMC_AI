@@ -5,17 +5,17 @@
     "market_direction": "2026-02-19T22:41:33.906902+00:00",
     "narratives": "2026-02-19T23:39:32.115445+00:00",
     "events": "2026-02-19T19:43:36.448892+00:00",
-    "sentiment": "2026-02-19T06:04:58.728197+00:00",
+    "sentiment": "2026-02-20T06:01:10.574944+00:00",
     "altcoins": "2025-12-14T13:34:12.765179+00:00",
     "bullish": "2025-12-14T05:29:18.868755+00:00"
   },
   "last_dynamic_question": "CFTC asserts federal authority over prediction markets",
   "dynamic_published_at": "2026-02-19T21:41:44.894364+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-02-19T23:39:32.115464+00:00",
-    "hour_utc": 23,
-    "answer_length": 3326
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-02-20T06:01:10.574958+00:00",
+    "hour_utc": 6,
+    "answer_length": 2970
   }
 }
