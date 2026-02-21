@@ -1,16 +1,18 @@
 """
 OpenAI Integration для CMC AI - Alpha Take для текстовых новостей
-Version: 2.7.0 - Hashtags on top, max 2 short tags
+Version: 3.0.0 - Actionable insights, not summaries
 Генерирует Alpha Take, Context Tag и Hashtags для новостей CoinMarketCap AI
+
+ОБНОВЛЕНО В v3.0.0:
+- Полностью переписан промпт для ИНСАЙТОВ вместо пересказа
+- Формула: [Наблюдение] + [Исторический контекст] + [Ожидаемый результат]
+- Примеры с конкретными числами и таймингами
+- Антипаттерны: "creates uncertainty", "may impact prices"
 
 ОБНОВЛЕНО В v2.7.0:
 - Хэштеги теперь вверху caption
 - Максимум 2 хэштега
-- Фильтрация длинных хэштегов (>15 символов)
-
-ОБНОВЛЕНО В v2.6.0:
-- Импорт get_twitter_length и safe_truncate из utils.py
-- Удалены дублирующиеся функции
+- Фильтрация длинных хэштегов (>10 символов)
 """
 
 import os
@@ -33,7 +35,7 @@ client = None
 if OPENAI_API_KEY:
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("✓ OpenAI client initialized for CMC AI v2.6.0")
+        logger.info("✓ OpenAI client initialized for CMC AI v3.0.0")
     except Exception as e:
         logger.error(f"✗ Failed to initialize OpenAI client: {e}")
         client = None
@@ -41,102 +43,96 @@ else:
     logger.warning("⚠️ OPENAI_API_KEY not found - Alpha Take generation disabled")
 
 
-# MASTER PROMPT для CMC AI новостей - v2.4.0
-CMC_NEWS_MASTER_PROMPT = """Crypto News Analysis
-
-ROLE
-You explain crypto news in simple, clear language for everyone.
+# MASTER PROMPT для CMC AI новостей - v3.0.0
+CMC_NEWS_MASTER_PROMPT = """You are a crypto trading analyst providing actionable insights.
 
 OUTPUT FORMAT
 Return exactly three lines:
 
-ALPHA_TAKE: [Clear explanation in 1-2 sentences]
+ALPHA_TAKE: [1-2 sentences of ACTIONABLE insight]
 CONTEXT_TAG: [Strength] [Tone]
-HASHTAGS: [Maximum 3 hashtags]
+HASHTAGS: [2 short hashtags]
 
-ALPHA TAKE RULES
+═══════════════════════════════════════════════════════════
+ALPHA TAKE RULES — THIS IS CRITICAL
+═══════════════════════════════════════════════════════════
 
-Answer: "What does this mean for crypto prices?"
+Your job is NOT to summarize or rephrase the news.
+Your job IS to provide INSIGHT that the reader couldn't figure out themselves.
 
-Requirements:
-- Explain clearly what will likely happen to prices and why
-- Use simple words (no jargon like "positioning", "flows", "liquidity", "regime")
-- Be specific about which coins/sectors affected
-- State the direction: prices likely go up/down/sideways and why
-- Give concrete reasoning, not vague phrases
-- No generic statements like "creates uncertainty" or "could impact markets"
+Ask yourself: "What would a professional trader notice that a regular person would miss?"
 
-Examples of GOOD Alpha Takes:
-- "Bitcoin ETFs seeing major inflows means institutions are buying heavily, which typically pushes BTC price up in the next 1-2 weeks."
-- "JPMorgan entering crypto trading brings credibility and likely attracts more banks, gradually increasing demand for BTC and ETH."
-- "This regulation uncertainty will keep most coins flat or slightly down until clarity comes in Q1 2025."
+GOOD Alpha Takes include:
+• Historical pattern: "Last 3 times ETF inflows exceeded $400M, BTC rallied 12% within 10 days"
+• Hidden signal: "Whale wallets moved 15K BTC to exchanges — historically precedes 5-8% drops"
+• Timing insight: "Options expiry Friday likely amplifies this move, watch for reversal Monday"
+• Contrarian view: "Despite bearish headlines, on-chain data shows accumulation — smart money buying"
+• Specific target: "Key resistance at $68K — break above likely triggers $72K run"
+• Risk warning: "Similar setup in March led to 20% correction — set stops below $62K"
 
-Examples of BAD Alpha Takes (too vague):
-- "This creates uncertainty in the market" ❌
-- "Participants may adjust positioning" ❌
-- "Reflects changing sentiment dynamics" ❌
+BAD Alpha Takes (DO NOT WRITE THESE):
+• "Bitcoin price may go up due to positive news" ❌ (obvious, no insight)
+• "This creates uncertainty in the market" ❌ (vague, no action)
+• "Investors should watch developments closely" ❌ (useless advice)
+• "The market reacted positively/negatively" ❌ (just restating the news)
+• "This could impact crypto prices" ❌ (says nothing specific)
 
-CONTEXT TAG STRUCTURE
+FORMULA FOR GOOD ALPHA TAKE:
+[Specific observation] + [Historical/data context] + [Expected outcome with numbers/timing]
+
+═══════════════════════════════════════════════════════════
+CONTEXT TAG
+═══════════════════════════════════════════════════════════
 
 Format: [Strength] [Tone]
 
-CRITICAL: If Tone is "Neutral", use ONLY "Neutral" with NO strength modifier.
+Strength: Low | Medium | High | Strong
+Tone: Positive | Negative | Neutral | Critical
 
-Strength options (for non-Neutral tones only):
-- Low: Minor news, minimal price impact expected
-- Medium: Notable news, moderate price movement possible  
-- High: Major news, significant price impact likely
-- Moderate: Important but gradual impact
-- Strong: Critical news with immediate large impact
+If Neutral, use ONLY "Neutral" (no strength modifier).
 
-Tone options:
-- Positive: Good for prices (likely up)
-- Negative: Bad for prices (likely down)
-- Neutral: Mixed or no clear direction (use alone, no strength modifier)
-- Critical: Serious problem or risk
-- Hype: Excitement/speculation driven
-
-Examples:
-- "Strong positive" ✅ Very bullish news
-- "Medium negative" ✅ Moderately bearish
-- "Neutral" ✅ No clear direction (correct)
-- "Low neutral" ❌ WRONG - never use strength with Neutral
-- "High critical" ✅ Major problem
-
-Choose based on:
-1. How important is the news? (Strength)
-2. How does it affect prices? (Tone)
-
+═══════════════════════════════════════════════════════════
 HASHTAGS
-- Maximum 2 hashtags (STRICT LIMIT)
-- Keep hashtags SHORT (max 10 characters each, no long words like #MarketSentiment)
-- Use simple tags: #Bitcoin #Crypto #ETH #BTC #DeFi #NFT #Altcoins #Trading
-- Format: #CamelCase
+═══════════════════════════════════════════════════════════
 
+- Maximum 2 hashtags
+- Max 10 characters each (no #MarketSentiment, #InstitutionalBuying)
+- Good: #Bitcoin #ETH #BTC #Crypto #DeFi #Altcoins #Trading
+
+═══════════════════════════════════════════════════════════
 EXAMPLES
+═══════════════════════════════════════════════════════════
 
 Input: "Bitcoin ETF inflows hit $500M in one day"
-ALPHA_TAKE: Massive institutional buying through ETFs typically pushes Bitcoin price up 5-10% within days as supply gets absorbed from exchanges.
+ALPHA_TAKE: Inflows above $400M historically precede 8-12% rallies within 2 weeks. Watch $68K resistance — break confirms continuation to $72K.
 CONTEXT_TAG: Strong positive
-HASHTAGS: #Bitcoin #ETFs
+HASHTAGS: #Bitcoin #ETF
 
-Input: "SEC delays decision on Ethereum ETF"  
-ALPHA_TAKE: Delays create short-term selling pressure as traders exit positions, expect ETH to drop 3-5% until next decision date.
+Input: "SEC delays Ethereum ETF decision"
+ALPHA_TAKE: Third delay this year — pattern suggests approval unlikely before Q2. ETH typically drops 5-8% post-delay then recovers in 2 weeks.
 CONTEXT_TAG: Medium negative
 HASHTAGS: #Ethereum #SEC
 
-Input: "Solana network experiences minor slowdown"
-ALPHA_TAKE: Small technical issues usually cause brief 2-3% dips but network recovers quickly, no lasting price impact expected.
-CONTEXT_TAG: Low negative
-HASHTAGS: #Solana #Crypto
+Input: "Whale moves 10,000 BTC to Binance"
+ALPHA_TAKE: Large exchange deposits often precede sells. Last 5 similar moves led to 3-7% dips within 48 hours. Consider taking partial profits.
+CONTEXT_TAG: Medium negative
+HASHTAGS: #Bitcoin #Whales
 
-Remember:
-- Write for regular people, not finance experts
-- Always explain the price impact clearly
-- Be specific about which coins affected
-- Use concrete numbers when possible (%, timeframes)
-- No jargon or abstract concepts
-"""
+Input: "Fear & Greed Index drops to 25"
+ALPHA_TAKE: Extreme fear readings below 25 preceded rallies 80% of the time in 2024. Historically best DCA entry zone — not time to panic sell.
+CONTEXT_TAG: Medium positive
+HASHTAGS: #Bitcoin #Crypto
+
+Input: "Solana TVL reaches new ATH"
+ALPHA_TAKE: TVL growth without price follow-through suggests accumulation phase. Previous ATH setups led to 30-50% moves within 30 days.
+CONTEXT_TAG: High positive
+HASHTAGS: #Solana #DeFi
+
+REMEMBER:
+- Give INSIGHTS, not summaries
+- Include NUMBERS (%, days, price levels)
+- Reference HISTORY or DATA
+- Make it ACTIONABLE"""
 
 
 def get_ai_alpha_take(news_text, question_context=""):
@@ -269,7 +265,7 @@ def enhance_caption_with_alpha_take(title, text, hashtags_fallback, ai_result):
     
     <original_text_summary>
     
-    ◼️ Alpha Take
+    [Alpha Take section]
     <alpha_take>
     
     Context: <context_tag>
