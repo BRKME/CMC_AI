@@ -3,7 +3,7 @@
     "kols": "2026-02-23T13:24:31.443131+00:00",
     "dynamic": "2026-02-23T09:00:43.722305+00:00",
     "market_direction": "2026-02-23T14:57:44.550834+00:00",
-    "narratives": "2026-02-22T23:35:05.121758+00:00",
+    "narratives": "2026-02-23T16:03:45.689401+00:00",
     "events": "2026-02-22T19:33:54.409152+00:00",
     "sentiment": "2026-02-22T18:49:45.551890+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Trump tariff shock wipes $100B from crypto",
   "dynamic_published_at": "2026-02-23T09:00:43.722291+00:00",
   "last_publication": {
-    "question": "Why is the market down today?",
-    "group": "market_direction",
-    "published_at": "2026-02-23T14:57:44.550849+00:00",
-    "hour_utc": 14,
-    "answer_length": 2988
+    "question": "What are the trending narratives?",
+    "group": "narratives",
+    "published_at": "2026-02-23T16:03:45.689418+00:00",
+    "hour_utc": 16,
+    "answer_length": 3379
   }
 }
