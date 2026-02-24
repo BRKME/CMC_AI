@@ -5,17 +5,17 @@
     "market_direction": "2026-02-24T15:00:13.635466+00:00",
     "narratives": "2026-02-24T16:06:55.023094+00:00",
     "events": "2026-02-23T19:17:36.425020+00:00",
-    "sentiment": "2026-02-24T06:04:35.136265+00:00",
+    "sentiment": "2026-02-24T18:08:41.067750+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
     "bullish": "2026-02-24T10:57:30.546039+00:00"
   },
   "last_dynamic_question": "Over $500M long liquidations shake crypto",
   "dynamic_published_at": "2026-02-24T09:00:20.319738+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-02-24T16:06:55.023109+00:00",
-    "hour_utc": 16,
-    "answer_length": 3278
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-02-24T18:08:41.067766+00:00",
+    "hour_utc": 18,
+    "answer_length": 2529
   }
 }
