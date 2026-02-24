@@ -7,15 +7,15 @@
     "events": "2026-02-23T19:17:36.425020+00:00",
     "sentiment": "2026-02-24T06:04:35.136265+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
-    "bullish": "2026-02-24T10:00:31.486523+00:00"
+    "bullish": "2026-02-24T10:57:30.546039+00:00"
   },
   "last_dynamic_question": "Over $500M long liquidations shake crypto",
   "dynamic_published_at": "2026-02-24T09:00:20.319738+00:00",
   "last_publication": {
     "question": "What cryptos are showing bullish momentum?",
     "group": "bullish",
-    "published_at": "2026-02-24T10:00:31.486538+00:00",
+    "published_at": "2026-02-24T10:57:30.546052+00:00",
     "hour_utc": 10,
-    "answer_length": 2969
+    "answer_length": 3096
   }
 }
