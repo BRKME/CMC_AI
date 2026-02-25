@@ -3,7 +3,7 @@
     "kols": "2026-02-25T13:31:46.301312+00:00",
     "dynamic": "2026-02-25T21:43:03.509924+00:00",
     "market_direction": "2026-02-25T22:42:56.578492+00:00",
-    "narratives": "2026-02-25T16:12:55.619357+00:00",
+    "narratives": "2026-02-25T23:38:14.821515+00:00",
     "events": "2026-02-25T19:53:16.388432+00:00",
     "sentiment": "2026-02-25T18:07:04.722621+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Crypto market jumps 7% amid extreme fear",
   "dynamic_published_at": "2026-02-25T21:43:03.509889+00:00",
   "last_publication": {
-    "question": "Why is the market up today?",
-    "group": "market_direction",
-    "published_at": "2026-02-25T22:42:56.578508+00:00",
-    "hour_utc": 22,
-    "answer_length": 3306
+    "question": "What are the trending narratives?",
+    "group": "narratives",
+    "published_at": "2026-02-25T23:38:14.821526+00:00",
+    "hour_utc": 23,
+    "answer_length": 3311
   }
 }
