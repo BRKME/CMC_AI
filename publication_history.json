@@ -7,15 +7,15 @@
     "events": "2026-02-25T19:53:16.388432+00:00",
     "sentiment": "2026-02-26T06:04:14.997452+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
-    "bullish": "2026-02-24T10:57:30.546039+00:00"
+    "bullish": "2026-02-26T10:56:21.431447+00:00"
   },
   "last_dynamic_question": "Crypto market climbs 4% as volume jumps",
   "dynamic_published_at": "2026-02-26T09:59:26.689006+00:00",
   "last_publication": {
-    "question": "Crypto market climbs 4% as volume jumps",
-    "group": "DYNAMIC",
-    "published_at": "2026-02-26T09:59:26.689028+00:00",
-    "hour_utc": 9,
-    "answer_length": 3120
+    "question": "What cryptos are showing bullish momentum?",
+    "group": "bullish",
+    "published_at": "2026-02-26T10:56:21.431459+00:00",
+    "hour_utc": 10,
+    "answer_length": 2755
   }
 }
