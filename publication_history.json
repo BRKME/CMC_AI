@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2026-02-25T13:31:46.301312+00:00",
+    "kols": "2026-02-26T13:26:34.912350+00:00",
     "dynamic": "2026-02-26T09:59:26.689022+00:00",
     "market_direction": "2026-02-26T08:59:47.707837+00:00",
     "narratives": "2026-02-25T23:38:14.821515+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Crypto market climbs 4% as volume jumps",
   "dynamic_published_at": "2026-02-26T09:59:26.689006+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2026-02-26T10:56:21.431459+00:00",
-    "hour_utc": 10,
-    "answer_length": 2755
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2026-02-26T13:26:34.912365+00:00",
+    "hour_utc": 13,
+    "answer_length": 3649
   }
 }
