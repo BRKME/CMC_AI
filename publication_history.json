@@ -5,17 +5,17 @@
     "market_direction": "2026-02-25T22:42:56.578492+00:00",
     "narratives": "2026-02-25T23:38:14.821515+00:00",
     "events": "2026-02-25T19:53:16.388432+00:00",
-    "sentiment": "2026-02-25T18:07:04.722621+00:00",
+    "sentiment": "2026-02-26T06:04:14.997452+00:00",
     "altcoins": "2026-02-22T15:34:47.252770+00:00",
     "bullish": "2026-02-24T10:57:30.546039+00:00"
   },
   "last_dynamic_question": "Crypto market jumps 7% amid extreme fear",
   "dynamic_published_at": "2026-02-25T21:43:03.509889+00:00",
   "last_publication": {
-    "question": "What are the trending narratives?",
-    "group": "narratives",
-    "published_at": "2026-02-25T23:38:14.821526+00:00",
-    "hour_utc": 23,
-    "answer_length": 3311
+    "question": "What is the market sentiment?",
+    "group": "sentiment",
+    "published_at": "2026-02-26T06:04:14.997464+00:00",
+    "hour_utc": 6,
+    "answer_length": 3330
   }
 }
