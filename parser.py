@@ -491,7 +491,7 @@ def send_telegram_message(message, parse_mode='HTML', add_subscribe_button=True)
         if add_subscribe_button:
             subscribe_markup = {
                 'inline_keyboard': [
-                    [{'text': '📢 Subscribe', 'url': 'https://t.me/OracAI_Radar'}]
+                    [{'text': '⭐ Subscribe', 'url': 'https://t.me/frogfriends'}]
                 ]
             }
         
