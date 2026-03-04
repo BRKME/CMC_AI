@@ -1,7 +1,7 @@
 {
   "last_published": {
     "kols": "2026-03-04T13:16:19.814576+00:00",
-    "dynamic": "2026-03-04T09:52:56.894950+00:00",
+    "dynamic": "2026-03-04T21:42:57.170517+00:00",
     "market_direction": "2026-03-04T14:46:41.737211+00:00",
     "narratives": "2026-03-04T16:57:58.497587+00:00",
     "events": "2026-03-04T19:43:23.284517+00:00",
@@ -9,13 +9,13 @@
     "altcoins": "2026-03-04T15:53:53.369783+00:00",
     "bullish": "2026-03-04T10:49:24.298716+00:00"
   },
-  "last_dynamic_question": "BTC ETFs add $4.2B amid broad rally",
-  "dynamic_published_at": "2026-03-04T09:52:56.894929+00:00",
+  "last_dynamic_question": "Memecoins jump as BTC rally accelerates",
+  "dynamic_published_at": "2026-03-04T21:42:57.170498+00:00",
   "last_publication": {
-    "question": "What upcoming events may impact crypto?",
-    "group": "events",
-    "published_at": "2026-03-04T19:43:23.284529+00:00",
-    "hour_utc": 19,
-    "answer_length": 3924
+    "question": "Memecoins jump as BTC rally accelerates",
+    "group": "DYNAMIC",
+    "published_at": "2026-03-04T21:42:57.170521+00:00",
+    "hour_utc": 21,
+    "answer_length": 3064
   }
 }
