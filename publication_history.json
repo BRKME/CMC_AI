@@ -4,7 +4,7 @@
     "dynamic": "2026-03-05T09:56:00.276437+00:00",
     "market_direction": "2026-03-05T14:56:04.198456+00:00",
     "narratives": "2026-03-04T23:38:49.039207+00:00",
-    "events": "2026-03-04T19:43:23.284517+00:00",
+    "events": "2026-03-05T19:57:11.387518+00:00",
     "sentiment": "2026-03-05T18:12:21.730369+00:00",
     "altcoins": "2026-03-05T15:58:19.485771+00:00",
     "bullish": "2026-03-05T10:52:58.294576+00:00"
@@ -12,10 +12,10 @@
   "last_dynamic_question": "BTC rally sparks $463M crypto short squeeze",
   "dynamic_published_at": "2026-03-05T09:56:00.276420+00:00",
   "last_publication": {
-    "question": "What is the market sentiment?",
-    "group": "sentiment",
-    "published_at": "2026-03-05T18:12:21.730388+00:00",
-    "hour_utc": 18,
-    "answer_length": 2792
+    "question": "What upcoming events may impact crypto?",
+    "group": "events",
+    "published_at": "2026-03-05T19:57:11.387535+00:00",
+    "hour_utc": 19,
+    "answer_length": 3483
   }
 }
