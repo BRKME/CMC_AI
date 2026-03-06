@@ -7,15 +7,15 @@
     "events": "2026-03-05T19:57:11.387518+00:00",
     "sentiment": "2026-03-05T18:12:21.730369+00:00",
     "altcoins": "2026-03-05T15:58:19.485771+00:00",
-    "bullish": "2026-03-05T10:52:58.294576+00:00"
+    "bullish": "2026-03-06T10:48:09.039780+00:00"
   },
   "last_dynamic_question": "BTC retreats from $74K on macro jitters",
   "dynamic_published_at": "2026-03-06T09:51:49.169371+00:00",
   "last_publication": {
-    "question": "BTC retreats from $74K on macro jitters",
-    "group": "DYNAMIC",
-    "published_at": "2026-03-06T09:51:49.169394+00:00",
-    "hour_utc": 9,
-    "answer_length": 4109
+    "question": "What cryptos are showing bullish momentum?",
+    "group": "bullish",
+    "published_at": "2026-03-06T10:48:09.039795+00:00",
+    "hour_utc": 10,
+    "answer_length": 2978
   }
 }
