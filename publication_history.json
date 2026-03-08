@@ -7,15 +7,15 @@
     "events": "2026-03-07T19:29:39.512457+00:00",
     "sentiment": "2026-03-08T06:56:26.102550+00:00",
     "altcoins": "2026-03-07T15:32:04.598652+00:00",
-    "bullish": "2026-03-07T10:33:52.246311+00:00"
+    "bullish": "2026-03-08T10:35:00.152554+00:00"
   },
   "last_dynamic_question": "IRS proposes digital-only tax reporting for crypto",
   "dynamic_published_at": "2026-03-08T09:38:26.666578+00:00",
   "last_publication": {
-    "question": "IRS proposes digital-only tax reporting for crypto",
-    "group": "DYNAMIC",
-    "published_at": "2026-03-08T09:38:26.666599+00:00",
-    "hour_utc": 9,
-    "answer_length": 3634
+    "question": "What cryptos are showing bullish momentum?",
+    "group": "bullish",
+    "published_at": "2026-03-08T10:35:00.152568+00:00",
+    "hour_utc": 10,
+    "answer_length": 3162
   }
 }
