@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2026-03-07T13:47:10.533517+00:00",
+    "kols": "2026-03-08T13:06:36.451837+00:00",
     "dynamic": "2026-03-08T09:38:26.666595+00:00",
     "market_direction": "2026-03-08T08:41:41.940009+00:00",
     "narratives": "2026-03-07T23:31:42.290800+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "IRS proposes digital-only tax reporting for crypto",
   "dynamic_published_at": "2026-03-08T09:38:26.666578+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2026-03-08T10:35:00.152568+00:00",
-    "hour_utc": 10,
-    "answer_length": 3162
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2026-03-08T13:06:36.451856+00:00",
+    "hour_utc": 13,
+    "answer_length": 3745
   }
 }
