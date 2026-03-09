@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-03-08T13:06:36.451837+00:00",
     "dynamic": "2026-03-08T21:32:43.200989+00:00",
-    "market_direction": "2026-03-08T22:33:43.643060+00:00",
+    "market_direction": "2026-03-09T08:56:56.078654+00:00",
     "narratives": "2026-03-08T23:33:03.381479+00:00",
     "events": "2026-03-08T19:31:30.381269+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "US senators advance stablecoin market structure bill",
   "dynamic_published_at": "2026-03-08T21:32:43.200970+00:00",
   "last_publication": {
-    "question": "What is the market sentiment?",
-    "group": "sentiment",
-    "published_at": "2026-03-09T06:03:53.633389+00:00",
-    "hour_utc": 6,
-    "answer_length": 3175
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-03-09T08:56:56.078667+00:00",
+    "hour_utc": 8,
+    "answer_length": 3211
   }
 }
