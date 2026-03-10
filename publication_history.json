@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-03-10T13:21:10.894515+00:00",
     "dynamic": "2026-03-10T21:36:59.689612+00:00",
-    "market_direction": "2026-03-10T15:00:04.988127+00:00",
+    "market_direction": "2026-03-10T22:37:29.584487+00:00",
     "narratives": "2026-03-10T16:07:35.482501+00:00",
     "events": "2026-03-10T19:42:46.896491+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Strategy buys $1.28B in BTC for treasury",
   "dynamic_published_at": "2026-03-10T21:36:59.689596+00:00",
   "last_publication": {
-    "question": "Strategy buys $1.28B in BTC for treasury",
-    "group": "DYNAMIC",
-    "published_at": "2026-03-10T21:36:59.689617+00:00",
-    "hour_utc": 21,
-    "answer_length": 3925
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-03-10T22:37:29.584501+00:00",
+    "hour_utc": 22,
+    "answer_length": 2440
   }
 }
