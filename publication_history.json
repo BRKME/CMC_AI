@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2026-03-10T13:21:10.894515+00:00",
+    "kols": "2026-03-11T13:20:46.968968+00:00",
     "dynamic": "2026-03-11T09:54:30.769741+00:00",
     "market_direction": "2026-03-11T08:55:42.242588+00:00",
     "narratives": "2026-03-10T23:36:18.964053+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "US Treasury recognizes lawful uses for mixers",
   "dynamic_published_at": "2026-03-11T09:54:30.769729+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2026-03-11T10:52:48.733592+00:00",
-    "hour_utc": 10,
-    "answer_length": 2827
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2026-03-11T13:20:46.969003+00:00",
+    "hour_utc": 13,
+    "answer_length": 3246
   }
 }
