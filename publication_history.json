@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-03-11T13:20:46.968968+00:00",
     "dynamic": "2026-03-11T09:54:30.769741+00:00",
-    "market_direction": "2026-03-11T08:55:42.242588+00:00",
+    "market_direction": "2026-03-11T14:56:18.438727+00:00",
     "narratives": "2026-03-10T23:36:18.964053+00:00",
     "events": "2026-03-10T19:42:46.896491+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "US Treasury recognizes lawful uses for mixers",
   "dynamic_published_at": "2026-03-11T09:54:30.769729+00:00",
   "last_publication": {
-    "question": "What are KOLs discussing?",
-    "group": "kols",
-    "published_at": "2026-03-11T13:20:46.969003+00:00",
-    "hour_utc": 13,
-    "answer_length": 3246
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-03-11T14:56:18.438741+00:00",
+    "hour_utc": 14,
+    "answer_length": 2653
   }
 }
