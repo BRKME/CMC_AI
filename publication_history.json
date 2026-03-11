@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-03-11T13:20:46.968968+00:00",
     "dynamic": "2026-03-11T21:41:33.815743+00:00",
-    "market_direction": "2026-03-11T14:56:18.438727+00:00",
+    "market_direction": "2026-03-11T22:35:36.189636+00:00",
     "narratives": "2026-03-10T23:36:18.964053+00:00",
     "events": "2026-03-11T19:47:24.631388+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Ripple launches $750M buyback at $50B valuation",
   "dynamic_published_at": "2026-03-11T21:41:33.815726+00:00",
   "last_publication": {
-    "question": "Ripple launches $750M buyback at $50B valuation",
-    "group": "DYNAMIC",
-    "published_at": "2026-03-11T21:41:33.815749+00:00",
-    "hour_utc": 21,
-    "answer_length": 3584
+    "question": "Why is the market up today?",
+    "group": "market_direction",
+    "published_at": "2026-03-11T22:35:36.189657+00:00",
+    "hour_utc": 22,
+    "answer_length": 2857
   }
 }
