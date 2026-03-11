@@ -4,7 +4,7 @@
     "dynamic": "2026-03-11T09:54:30.769741+00:00",
     "market_direction": "2026-03-11T14:56:18.438727+00:00",
     "narratives": "2026-03-10T23:36:18.964053+00:00",
-    "events": "2026-03-10T19:42:46.896491+00:00",
+    "events": "2026-03-11T19:04:30.960251+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
     "altcoins": "2026-03-11T15:57:54.317437+00:00",
     "bullish": "2026-03-11T10:52:48.733575+00:00"
@@ -12,10 +12,10 @@
   "last_dynamic_question": "US Treasury recognizes lawful uses for mixers",
   "dynamic_published_at": "2026-03-11T09:54:30.769729+00:00",
   "last_publication": {
-    "question": "Are altcoins outperforming Bitcoin?",
-    "group": "altcoins",
-    "published_at": "2026-03-11T15:57:54.317453+00:00",
-    "hour_utc": 15,
-    "answer_length": 3270
+    "question": "What upcoming events may impact crypto?",
+    "group": "events",
+    "published_at": "2026-03-11T19:04:30.960286+00:00",
+    "hour_utc": 19,
+    "answer_length": 4819
   }
 }
