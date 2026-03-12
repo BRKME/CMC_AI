@@ -1,7 +1,7 @@
 {
   "last_published": {
     "kols": "2026-03-12T14:59:44.562071+00:00",
-    "dynamic": "2026-03-12T09:55:26.084254+00:00",
+    "dynamic": "2026-03-12T21:42:28.382836+00:00",
     "market_direction": "2026-03-11T22:35:36.189636+00:00",
     "narratives": "2026-03-12T16:07:07.255642+00:00",
     "events": "2026-03-12T19:49:27.427825+00:00",
@@ -9,13 +9,13 @@
     "altcoins": "2026-03-11T15:57:54.317437+00:00",
     "bullish": "2026-03-12T10:51:59.500901+00:00"
   },
-  "last_dynamic_question": "BTC rebounds above $70,000 as oil eases",
-  "dynamic_published_at": "2026-03-12T09:55:26.084239+00:00",
+  "last_dynamic_question": "Goldman delays Fed cuts forecast citing oil",
+  "dynamic_published_at": "2026-03-12T21:42:28.382818+00:00",
   "last_publication": {
-    "question": "What upcoming events may impact crypto?",
-    "group": "events",
-    "published_at": "2026-03-12T19:49:27.427840+00:00",
-    "hour_utc": 19,
-    "answer_length": 3528
+    "question": "Goldman delays Fed cuts forecast citing oil",
+    "group": "DYNAMIC",
+    "published_at": "2026-03-12T21:42:28.382841+00:00",
+    "hour_utc": 21,
+    "answer_length": 3482
   }
 }
