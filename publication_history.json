@@ -2,7 +2,7 @@
   "last_published": {
     "kols": "2026-03-12T14:59:44.562071+00:00",
     "dynamic": "2026-03-12T21:42:28.382836+00:00",
-    "market_direction": "2026-03-11T22:35:36.189636+00:00",
+    "market_direction": "2026-03-12T22:35:50.896286+00:00",
     "narratives": "2026-03-12T16:07:07.255642+00:00",
     "events": "2026-03-12T19:49:27.427825+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "Goldman delays Fed cuts forecast citing oil",
   "dynamic_published_at": "2026-03-12T21:42:28.382818+00:00",
   "last_publication": {
-    "question": "Goldman delays Fed cuts forecast citing oil",
-    "group": "DYNAMIC",
-    "published_at": "2026-03-12T21:42:28.382841+00:00",
-    "hour_utc": 21,
-    "answer_length": 3482
+    "question": "Why is the market down today?",
+    "group": "market_direction",
+    "published_at": "2026-03-12T22:35:50.896302+00:00",
+    "hour_utc": 22,
+    "answer_length": 2919
   }
 }
