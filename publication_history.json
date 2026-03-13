@@ -7,15 +7,15 @@
     "events": "2026-03-12T19:49:27.427825+00:00",
     "sentiment": "2026-03-09T06:03:53.633373+00:00",
     "altcoins": "2026-03-11T15:57:54.317437+00:00",
-    "bullish": "2026-03-12T10:51:59.500901+00:00"
+    "bullish": "2026-03-13T10:49:54.319441+00:00"
   },
   "last_dynamic_question": "Goldman delays Fed cuts forecast citing oil",
   "dynamic_published_at": "2026-03-12T21:42:28.382818+00:00",
   "last_publication": {
-    "question": "Why is the market up today?",
-    "group": "market_direction",
-    "published_at": "2026-03-13T08:53:41.257451+00:00",
-    "hour_utc": 8,
-    "answer_length": 2543
+    "question": "What cryptos are showing bullish momentum?",
+    "group": "bullish",
+    "published_at": "2026-03-13T10:49:54.319459+00:00",
+    "hour_utc": 10,
+    "answer_length": 2461
   }
 }
