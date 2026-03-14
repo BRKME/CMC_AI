@@ -7,15 +7,15 @@
     "events": "2026-03-13T19:38:31.570730+00:00",
     "sentiment": "2026-03-13T18:55:57.479013+00:00",
     "altcoins": "2026-03-13T15:53:01.091074+00:00",
-    "bullish": "2026-03-13T10:49:54.319441+00:00"
+    "bullish": "2026-03-14T10:38:28.243935+00:00"
   },
   "last_dynamic_question": "Hong Kong banks poised for stablecoin licenses",
   "dynamic_published_at": "2026-03-13T21:42:14.705362+00:00",
   "last_publication": {
-    "question": "What are KOLs discussing?",
-    "group": "kols",
-    "published_at": "2026-03-14T08:48:01.677589+00:00",
-    "hour_utc": 8,
-    "answer_length": 3015
+    "question": "What cryptos are showing bullish momentum?",
+    "group": "bullish",
+    "published_at": "2026-03-14T10:38:28.243948+00:00",
+    "hour_utc": 10,
+    "answer_length": 2417
   }
 }
