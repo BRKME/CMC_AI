@@ -1,7 +1,7 @@
 {
   "last_published": {
     "kols": "2026-03-14T22:36:30.709058+00:00",
-    "dynamic": "2026-03-14T21:34:25.268486+00:00",
+    "dynamic": "2026-03-15T09:43:34.124159+00:00",
     "market_direction": "2026-03-15T08:49:43.123550+00:00",
     "narratives": "2026-03-14T23:36:56.062939+00:00",
     "events": "2026-03-13T19:38:31.570730+00:00",
@@ -9,13 +9,13 @@
     "altcoins": "2026-03-14T15:36:17.769933+00:00",
     "bullish": "2026-03-14T10:38:28.243935+00:00"
   },
-  "last_dynamic_question": "ETF inflows steady BTC amid Iran war",
-  "dynamic_published_at": "2026-03-14T21:34:25.268475+00:00",
+  "last_dynamic_question": "BTC whales accumulate as ETFs extend inflows",
+  "dynamic_published_at": "2026-03-15T09:43:34.124143+00:00",
   "last_publication": {
-    "question": "Why is the market up today?",
-    "group": "market_direction",
-    "published_at": "2026-03-15T08:49:43.123565+00:00",
-    "hour_utc": 8,
-    "answer_length": 2834
+    "question": "BTC whales accumulate as ETFs extend inflows",
+    "group": "DYNAMIC",
+    "published_at": "2026-03-15T09:43:34.124163+00:00",
+    "hour_utc": 9,
+    "answer_length": 3574
   }
 }
