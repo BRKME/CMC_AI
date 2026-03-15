@@ -1,6 +1,6 @@
 {
   "last_published": {
-    "kols": "2026-03-14T22:36:30.709058+00:00",
+    "kols": "2026-03-15T13:11:46.095512+00:00",
     "dynamic": "2026-03-15T09:43:34.124159+00:00",
     "market_direction": "2026-03-15T08:49:43.123550+00:00",
     "narratives": "2026-03-14T23:36:56.062939+00:00",
@@ -12,10 +12,10 @@
   "last_dynamic_question": "BTC whales accumulate as ETFs extend inflows",
   "dynamic_published_at": "2026-03-15T09:43:34.124143+00:00",
   "last_publication": {
-    "question": "What cryptos are showing bullish momentum?",
-    "group": "bullish",
-    "published_at": "2026-03-15T10:40:08.865981+00:00",
-    "hour_utc": 10,
-    "answer_length": 2819
+    "question": "What are KOLs discussing?",
+    "group": "kols",
+    "published_at": "2026-03-15T13:11:46.095528+00:00",
+    "hour_utc": 13,
+    "answer_length": 3806
   }
 }
